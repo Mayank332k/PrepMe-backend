@@ -4,9 +4,11 @@ const User = require('../models/User');
 exports.protect = async (req, res, next) => {
   let token;
 
-  // 1. Check if token exists in cookies
+  // 1. Check if token exists in cookies or headers
   if (req.cookies && req.cookies.token) {
     token = req.cookies.token;
+  } else if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
+    token = req.headers.authorization.split(' ')[1];
   }
 
   // 2. Error agar token nahi mila
