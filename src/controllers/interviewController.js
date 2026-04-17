@@ -10,13 +10,11 @@ exports.ingestDocument = async (req, res) => {
       return res.status(400).json({ message: 'Please upload a PDF resume.' });
     }
 
-    // 1. Extract Text
-    const dataBuffer = fs.readFileSync(req.file.path);
-    const pdfData = await pdf(dataBuffer);
+    // 1. Extract Text from Buffer
+    const pdfData = await pdf(req.file.buffer);
     const resumeText = pdfData.text;
 
     if (!resumeText || resumeText.trim().length === 0) {
-      if (fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
       return res.status(400).json({ message: 'Could not extract text from PDF.' });
     }
 
@@ -52,8 +50,7 @@ exports.ingestDocument = async (req, res) => {
     session.transcript.push({ role: 'assistant', content: firstMessage, stage: 'introduction' });
     await session.save();
 
-    // 5. Cleanup
-    if (fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
+    // 5. Cleanup (Not needed with memoryStorage)
 
     res.status(201).json({
       success: true,
@@ -63,7 +60,6 @@ exports.ingestDocument = async (req, res) => {
     });
 
   } catch (error) {
-    if (req.file && fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
     console.error('Ingest Error Details:', error);
     res.status(500).json({ 
       success: false,
