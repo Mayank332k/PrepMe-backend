@@ -16,35 +16,45 @@ exports.generateReport = async (req, res) => {
     // 1. Prepare Transcript for AI
     const conversation = session.transcript.map(m => `${m.role}: ${m.content}`).join('\n');
 
-    // 2. AI Prompt for Evaluation (Mentor Persona)
+    // 2. AI Prompt for Evaluation (Professional Mentor Persona)
     const evaluationPrompt = `
-      You are a friendly and constructive Interview Coach. 
-      Your goal is to help the candidate, ${req.user.name}, improve their interview skills.
-      
+      You are a Senior Technical Recruiter and Career Coach. Your task is to provide a high-fidelity, accurate evaluation of a mock interview based on the provided transcript.
+
+      CANDIDATE: ${req.user.name}
+      TARGET ROLE/JOB DESCRIPTION: ${session.jobDescription || 'Not specified'}
+      CANDIDATE BACKGROUND (Parsed Resume): ${JSON.stringify(session.profileJson || {})}
+
       TRANSCRIPT OF THE INTERVIEW:
       ${conversation}
 
+      SCORING RUBRIC (0-100):
+      - Technical Depth: Accuracy of technical answers, understanding of core concepts, and ability to explain complex ideas.
+      - Communication: Clarity, structure of answers (e.g., STAR method), active listening, and tone.
+      - Problem Solving: Logical approach, handling of difficult questions, and critical thinking.
+      - Confidence: Pace of speaking, hesitation levels, and overall demeanor.
+
       EVALUATION GUIDELINES:
-      - Be encouraging but honest.
-      - Address the candidate directly as '${req.user.name}'. 
-      - Use phrases like "You could...", "Try to focus on...", "Next time, consider...".
-      - Do not refer to them as "The Candidate". Talk TO them, not ABOUT them.
+      - Be brutally honest but constructive. If the candidate failed a technical question, reflect it in the score.
+      - High scores (80+) should only be given if the candidate provided detailed, accurate, and structured answers.
+      - Address ${req.user.name} directly.
+      - "growth" points must be actionable (e.g., "Instead of just saying X, you should explain the 'why' behind Y").
+      - "suggestedTopics" should be specific technical concepts or soft skills mentioned in the transcript.
 
       JSON OUTPUT FORMAT:
       {
-        "overallScore": number (0-100),
+        "overallScore": number (calculated based on average of metrics),
         "metrics": {
           "technicalDepth": number,
           "communication": number,
           "problemSolving": number,
           "confidence": number
         },
-        "strengths": ["3 positive highlights of what ${req.user.name} did well"],
-        "growth": ["3 constructive suggestions on how ${req.user.name} can improve"],
-        "suggestedTopics": ["3 topics for ${req.user.name} to study"]
+        "strengths": ["3 specific evidence-based highlights"],
+        "growth": ["3 actionable improvement points with examples from transcript"],
+        "suggestedTopics": ["3 specific concepts/skills to study for the target role"]
       }
       
-      STRICT RULE: ONLY return valid JSON.
+      STRICT RULE: ONLY return valid JSON. Do not include any text outside the JSON block.
     `;
 
     // 3. Get AI Evaluation
@@ -139,5 +149,43 @@ exports.getReport = async (req, res) => {
     res.json({ success: true, report });
   } catch (error) {
     res.status(500).json({ message: 'Server error' });
+  }
+};
+
+// @desc    Delete a specific history item
+// @route   DELETE /api/interview/history/:sessionId
+exports.deleteHistoryItem = async (req, res) => {
+  try {
+    const { sessionId } = req.params;
+    
+    // Check if session belongs to user
+    const session = await Session.findOne({ _id: sessionId, userId: req.user._id });
+    if (!session) {
+      return res.status(404).json({ success: false, message: 'Session not found or unauthorized' });
+    }
+
+    // Delete session and its associated report
+    await Session.findByIdAndDelete(sessionId);
+    await Report.findOneAndDelete({ sessionId: sessionId });
+
+    res.status(200).json({ success: true, message: 'History item deleted successfully' });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Failed to delete history item' });
+  }
+};
+
+// @desc    Clear all history for a user
+// @route   DELETE /api/interview/history
+exports.clearAllHistory = async (req, res) => {
+  try {
+    const userId = req.user._id;
+
+    // Delete all sessions and reports for this user
+    await Session.deleteMany({ userId: userId });
+    await Report.deleteMany({ userId: userId });
+
+    res.status(200).json({ success: true, message: 'All history cleared successfully' });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Failed to clear history' });
   }
 };

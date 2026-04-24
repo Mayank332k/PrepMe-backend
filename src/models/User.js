@@ -25,6 +25,15 @@ const userSchema = new mongoose.Schema({
   avatar: {
     type: String,
   },
+  resumeName: {
+    type: String,
+  },
+  resumeText: {
+    type: String,
+  },
+  resumeProfile: {
+    type: Object, // Stores the parsed AI profile
+  },
   createdAt: {
     type: Date,
     default: Date.now,
