@@ -23,6 +23,7 @@ async function getAIResponse(messages, systemPrompt) {
         ...messages
       ],
       temperature: 0.7,
+      max_tokens: 2000,
     });
 
     return response.data?.choices?.[0]?.message?.content || null;

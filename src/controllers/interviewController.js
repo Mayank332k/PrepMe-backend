@@ -74,7 +74,11 @@ exports.ingestDocument = async (req, res) => {
     `;
     const firstMessage = await getAIResponse([], openPrompt);
 
-    session.transcript.push({ role: 'assistant', content: firstMessage, stage: 'introduction' });
+    session.transcript.push({ 
+      role: 'assistant', 
+      content: firstMessage || "Hello! I'm your interviewer today. Are you ready to begin?", 
+      stage: 'introduction' 
+    });
     await session.save();
 
     res.status(201).json({

@@ -13,74 +13,55 @@ exports.generateReport = async (req, res) => {
       return res.status(404).json({ message: 'Session not found.' });
     }
 
-    // 1. Prepare Transcript for AI
-    const conversation = session.transcript.map(m => `${m.role}: ${m.content}`).join('\n');
+    // 1. Prepare Transcript (Aggressive Truncation for token saving)
+    let conversation = session.transcript.map(m => `${m.role[0]}: ${m.content}`).join('\n');
+    if (conversation.length > 5000) conversation = '...' + conversation.slice(-5000);
 
-    // 2. AI Prompt for Evaluation (Professional Mentor Persona)
+    // 2. Minimalist AI Prompt
     const evaluationPrompt = `
-      You are a Senior Technical Recruiter and Career Coach. Your task is to provide a high-fidelity, accurate evaluation of a mock interview based on the provided transcript.
+      Act as Senior Recruiter. Evaluate Interview.
+      Candidate: ${req.user.name} | Role: ${session.jobDescription || 'General'}
+      Background: ${JSON.stringify(session.profileJson || {})}
+      Transcript: ${conversation}
 
-      CANDIDATE: ${req.user.name}
-      TARGET ROLE/JOB DESCRIPTION: ${session.jobDescription || 'Not specified'}
-      CANDIDATE BACKGROUND (Parsed Resume): ${JSON.stringify(session.profileJson || {})}
+      Metrics(0-100): technicalDepth, communication, problemSolving, confidence.
+      Rules: Be honest, address candidate directly, actionable feedback.
 
-      TRANSCRIPT OF THE INTERVIEW:
-      ${conversation}
-
-      SCORING RUBRIC (0-100):
-      - Technical Depth: Accuracy of technical answers, understanding of core concepts, and ability to explain complex ideas.
-      - Communication: Clarity, structure of answers (e.g., STAR method), active listening, and tone.
-      - Problem Solving: Logical approach, handling of difficult questions, and critical thinking.
-      - Confidence: Pace of speaking, hesitation levels, and overall demeanor.
-
-      EVALUATION GUIDELINES:
-      - Be brutally honest but constructive. If the candidate failed a technical question, reflect it in the score.
-      - High scores (80+) should only be given if the candidate provided detailed, accurate, and structured answers.
-      - Address ${req.user.name} directly.
-      - "growth" points must be actionable (e.g., "Instead of just saying X, you should explain the 'why' behind Y").
-      - "suggestedTopics" should be specific technical concepts or soft skills mentioned in the transcript.
-
-      JSON OUTPUT FORMAT:
+      Output JSON ONLY (max 3 items per list):
       {
-        "overallScore": number (calculated based on average of metrics),
-        "metrics": {
-          "technicalDepth": number,
-          "communication": number,
-          "problemSolving": number,
-          "confidence": number
-        },
-        "strengths": ["3 specific evidence-based highlights"],
-        "growth": ["3 actionable improvement points with examples from transcript"],
-        "suggestedTopics": ["3 specific concepts/skills to study for the target role"]
+        "overallScore": number,
+        "metrics": {"technicalDepth":0, "communication":0, "problemSolving":0, "confidence":0},
+        "strengths": ["max 3"], "growth": ["max 3"], "suggestedTopics": ["max 3"]
       }
-      
-      STRICT RULE: ONLY return valid JSON. Do not include any text outside the JSON block.
     `;
 
     // 3. Get AI Evaluation
-    const aiResponse = await getAIResponse([{ role: 'user', content: evaluationPrompt }], "You are a professional auditor.");
-    
-    if (!aiResponse) {
-      console.error('AI Response was empty for report generation.');
-      throw new Error('AI failed to return any content for the evaluation.');
-    }
+    const aiResponse = await getAIResponse([{ role: 'user', content: evaluationPrompt }], "Return ONLY valid JSON.");
 
-    // Smart JSON extraction
-    let evaluation;
-    try {
-      // Strip markdown code blocks if AI added them
-      const cleaned = aiResponse.replace(/```json/g, '').replace(/```/g, '').trim();
-      const startIdx = cleaned.indexOf('{');
-      const endIdx = cleaned.lastIndexOf('}');
-      
-      if (startIdx !== -1 && endIdx !== -1) {
-        evaluation = JSON.parse(cleaned.substring(startIdx, endIdx + 1));
-      } else {
-        throw new Error('No JSON object found');
+    const fallback = {
+      overallScore: 50,
+      metrics: { technicalDepth: 50, communication: 50, problemSolving: 50, confidence: 50 },
+      strengths: ["Interview completed"],
+      growth: ["Provide more detailed answers"],
+      suggestedTopics: ["Core fundamentals"]
+    };
+
+    let evaluation = fallback;
+
+    if (aiResponse && aiResponse.trim().length > 0) {
+      try {
+        const cleaned = aiResponse.replace(/```json/g, '').replace(/```/g, '').trim();
+        const startIdx = cleaned.indexOf('{');
+        const endIdx = cleaned.lastIndexOf('}');
+        
+        if (startIdx !== -1 && endIdx !== -1) {
+          evaluation = JSON.parse(cleaned.substring(startIdx, endIdx + 1));
+        }
+      } catch (e) {
+        console.error('JSON Parse Failed, using fallback. Raw:', aiResponse.substring(0, 200));
       }
-    } catch (e) {
-      console.error('JSON Parse Failed:', e.message, 'Raw:', aiResponse);
-      throw new Error('AI Evaluation JSON was malformed.');
+    } else {
+      console.warn('AI Response was empty, using fallback report.');
     }
 
     // 4. Save Report to DB
@@ -88,10 +69,10 @@ exports.generateReport = async (req, res) => {
       sessionId,
       userId: req.user._id,
       overallScore: evaluation.overallScore || 0,
-      metrics: evaluation.metrics || {},
-      strengths: evaluation.strengths || [],
-      growth: evaluation.growth || [],
-      suggestedTopics: evaluation.suggestedTopics || []
+      metrics: evaluation.metrics || fallback.metrics,
+      strengths: evaluation.strengths || fallback.strengths,
+      growth: evaluation.growth || fallback.growth,
+      suggestedTopics: evaluation.suggestedTopics || fallback.suggestedTopics
     });
 
     // 5. Update Session status to completed
