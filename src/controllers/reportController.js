@@ -21,11 +21,16 @@ exports.generateReport = async (req, res) => {
     const evaluationPrompt = `
       Act as Senior Recruiter. Evaluate Interview.
       Candidate: ${req.user.name} | Role: ${session.jobDescription || 'General'}
-      Background: ${JSON.stringify(session.profileJson || {})}
+      
+      RESUME SUMMARY: ${JSON.stringify(session.profileJson || {})}
+      
+      FULL RESUME TEXT:
+      ${session.resumeText}
+      
       Transcript: ${conversation}
 
       Metrics(0-100): technicalDepth, communication, problemSolving, confidence.
-      Rules: Be honest, address candidate directly, actionable feedback.
+      Rules: Be honest, address candidate directly, actionable feedback Note - Hardcheck here!.
 
       Output JSON ONLY (max 3 items per list):
       {

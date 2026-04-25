@@ -59,7 +59,12 @@ async function parseResumeWithAI(resumeText) {
   try {
     const response = await getAIResponse([{ role: 'user', content: prompt }], "You are a JSON generator.");
     
-    if (!response) return { name: "Candidate", rawText: "AI returned empty" };
+    console.log('[AI Service] Raw parsing response length:', response?.length);
+    
+    if (!response) {
+      console.warn('[AI Service] AI returned empty response for parsing');
+      return { name: "Candidate", rawText: "AI returned empty" };
+    }
 
     // JSON nikalne ke liye smarter logic (find first { and last })
     const startIdx = response.indexOf('{');

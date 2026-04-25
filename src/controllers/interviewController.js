@@ -35,7 +35,10 @@ exports.ingestDocument = async (req, res) => {
       resumeText = pdfData.text;
       resumeName = req.file.originalname;
 
+      console.log(`[Ingest] Extracted text from ${resumeName}, length: ${resumeText?.length}`);
+
       if (!resumeText || resumeText.trim().length === 0) {
+        console.error('[Ingest] Empty text extracted from PDF');
         return res.status(400).json({ message: 'Could not extract text from PDF.' });
       }
 
@@ -68,9 +71,20 @@ exports.ingestDocument = async (req, res) => {
 
     // 6. Generate Opening Greeting (Phase 1: Ice-breaking)
     const openPrompt = `
-      Welcome ${req.user.name || 'Candidate'} to PrepMe. 
-      Ask how they are doing and if they are ready to start the interview. 
-      Keep it brief (1-2 sentences).
+      You are an AI Technical Interviewer at PrepMe. 
+      The candidate's name is ${req.user.name || 'Candidate'}.
+      
+      RESUME ANALYSIS:
+      - Summary: ${profileJson?.summary || 'N/A'}
+      - Top Skills: ${(profileJson?.topSkills || []).join(', ')}
+      - Experience: ${profileJson?.experienceYears || '0'} years
+
+      INSTRUCTIONS:
+      1. Greet the candidate warmly.
+      2. Mention that you have reviewed their resume.
+      3. Briefly mention one interesting thing from their resume (like a skill or summary) to show you've analyzed it.
+      4. Ask how they are doing and if they are ready to begin the interview.
+      5. Keep it brief (2-4 sentences).
     `;
     const firstMessage = await getAIResponse([], openPrompt);
 
