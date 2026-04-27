@@ -79,12 +79,20 @@ exports.ingestDocument = async (req, res) => {
       - Top Skills: ${(profileJson?.topSkills || []).join(', ')}
       - Experience: ${profileJson?.experienceYears || '0'} years
 
+      ${req.body.jobDescription ? `TARGET JOB DESCRIPTION:
+      ${req.body.jobDescription}` : ''}
+
       INSTRUCTIONS:
       1. Greet the candidate warmly.
-      2. Mention that you have reviewed their resume.
-      3. Briefly mention one interesting thing from their resume (like a skill or summary) to show you've analyzed it.
+      2. Mention that you have reviewed their resume ${req.body.jobDescription ? 'for the target role' : ''}.
+      3. Briefly mention one interesting thing from their resume to show you've analyzed it.
       4. Ask how they are doing and if they are ready to begin the interview.
       5. Keep it brief (2-4 sentences).
+
+      # Formatting Rules (CRITICAL for Frontend)
+      - Use **Bold** for key names or terms.
+      - Use *Italics* for conversational tone or emphasis.
+      - Use double line breaks (\n\n) between different parts of the message.
     `;
     const firstMessage = await getAIResponse([], openPrompt);
 

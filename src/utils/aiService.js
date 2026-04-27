@@ -34,6 +34,31 @@ async function getAIResponse(messages, systemPrompt) {
 }
 
 /**
+ * Generate a streaming AI response
+ */
+async function getStreamingAIResponse(messages, systemPrompt) {
+  try {
+    const response = await sarvamApi.post('/chat/completions', {
+      model: SARVAM_MODEL,
+      messages: [
+        { role: 'system', content: systemPrompt },
+        ...messages
+      ],
+      temperature: 0.7,
+      max_tokens: 2000,
+      stream: true,
+    }, {
+      responseType: 'stream'
+    });
+
+    return response.data;
+  } catch (error) {
+    console.error('Sarvam Streaming Error:', error.response?.data || error.message);
+    throw new Error('Streaming service unavailable.');
+  }
+}
+
+/**
  * Specifically parses resume text into structured Profile JSON
  */
 async function parseResumeWithAI(resumeText) {
@@ -89,5 +114,6 @@ async function parseResumeWithAI(resumeText) {
 
 module.exports = {
   getAIResponse,
+  getStreamingAIResponse,
   parseResumeWithAI
 };

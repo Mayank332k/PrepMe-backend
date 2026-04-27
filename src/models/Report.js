@@ -23,7 +23,7 @@ const reportSchema = new mongoose.Schema({
     confidence: Number,
   },
   strengths: [String],
-  growth: [String],   
+  areasForGrowth: [String],   
   suggestedTopics: [String],
   createdAt: {
     type: Date,

@@ -14,40 +14,87 @@ exports.generateReport = async (req, res) => {
     }
 
     // 1. Prepare Transcript (Aggressive Truncation for token saving)
+    const userMessages = session.transcript.filter(m => m.role === 'user');
+    
+    // If no user messages, return a zero report immediately
+    if (userMessages.length === 0) {
+      const zeroReport = await Report.create({
+        sessionId,
+        userId: req.user._id,
+        overallScore: 0,
+        metrics: { technicalDepth: 0, communication: 0, problemSolving: 0, confidence: 0 },
+        strengths: ["None (No response provided)"],
+        areasForGrowth: ["N/A (Interview not started)"],
+        suggestedTopics: ["N/A"]
+      });
+      session.status = 'completed';
+      await session.save();
+      return res.status(201).json({ success: true, report: zeroReport });
+    }
+
     let conversation = session.transcript.map(m => `${m.role[0]}: ${m.content}`).join('\n');
     if (conversation.length > 5000) conversation = '...' + conversation.slice(-5000);
 
-    // 2. Minimalist AI Prompt
+    // 2. Fair but Realistic AI Evaluator Prompt
     const evaluationPrompt = `
-      Act as Senior Recruiter. Evaluate Interview.
-      Candidate: ${req.user.name} | Role: ${session.jobDescription || 'General'}
-      
-      RESUME SUMMARY: ${JSON.stringify(session.profileJson || {})}
-      
-      FULL RESUME TEXT:
-      ${session.resumeText}
-      
-      Transcript: ${conversation}
+      # Role: AI Interview Evaluator
+      Evaluate the transcript FAIRLY and REALISTICALLY based on what the candidate actually said.
 
-      Metrics(0-100): technicalDepth, communication, problemSolving, confidence.
-      Rules: Be honest, address candidate directly, actionable feedback Note - Hardcheck here!.
+      IMPORTANT RULES:
+      - If the candidate participated and answered questions, they MUST get a score above 0.
+      - Score based on ACTUAL performance, not perfection. A basic but correct answer deserves 30-50.
+      - Only give 0 if the candidate was completely silent or gave zero relevant answers for that metric.
+      - DO NOT assume skills from the resume. Evaluate ONLY what was said in the transcript.
 
-      Output JSON ONLY (max 3 items per list):
+      # Scoring Bands (0-100 scale for each metric)
+      - 0-10:   Completely silent or irrelevant responses.
+      - 11-30:  Attempted answers but very surface-level, vague, or mostly incorrect.
+      - 31-50:  Basic understanding shown, mentioned correct tools/concepts but lacked depth.
+      - 51-70:  Solid answers with some depth, examples, or reasoning.
+      - 71-85:  Strong answers with clear explanations, trade-offs, and practical knowledge.
+      - 86-100: Exceptional depth, internals knowledge, edge cases, and real-world insights.
+
+      # Metrics
+      1. Technical Depth (40% weight): Did they explain HOW things work? Did they name specific tools, libraries, or patterns? Did they show understanding beyond surface level?
+      2. Problem Solving (30% weight): Did they demonstrate logical thinking, trade-off analysis, or debugging mindset? Even describing their approach counts.
+      3. Communication (20% weight): Were their answers structured and clear? Did they respond coherently? Even short clear answers score here.
+      4. Confidence (10% weight): Did they answer with certainty? Did they admit gaps honestly (which is also good)? Hesitation or uncertainty lowers this.
+
+      # Scoring Calculation
+      OverallScore = Round((TechDepth * 0.4) + (ProblemSolving * 0.3) + (Communication * 0.2) + (Confidence * 0.1))
+
+      # Content Rules
+      - Strengths: What the candidate ACTUALLY demonstrated well. Max 5 short phrases.
+      - AreasForGrowth: Specific weak points or missed opportunities. Max 5 specific points.
+      - SuggestedTopics: Topics they should study based on their weaknesses. Max 5 items.
+      - No resume assumptions. No motivational fluff. Be specific and actionable.
+
+      # Transcript to Evaluate:
+      ${conversation}
+
+      # Output ONLY valid JSON (no extra text):
       {
-        "overallScore": number,
-        "metrics": {"technicalDepth":0, "communication":0, "problemSolving":0, "confidence":0},
-        "strengths": ["max 3"], "growth": ["max 3"], "suggestedTopics": ["max 3"]
+        "overallScore": <number 0-100>,
+        "metrics": {
+          "technicalDepth": <number 0-100>,
+          "communication": <number 0-100>,
+          "problemSolving": <number 0-100>,
+          "confidence": <number 0-100>
+        },
+        "strengths": ["<string>", ...],
+        "areasForGrowth": ["<string>", ...],
+        "suggestedTopics": ["<string>", ...]
       }
     `;
 
     // 3. Get AI Evaluation
-    const aiResponse = await getAIResponse([{ role: 'user', content: evaluationPrompt }], "Return ONLY valid JSON.");
+    const aiResponse = await getAIResponse([{ role: 'user', content: evaluationPrompt }], "You are a fair interview evaluator. Return ONLY valid JSON. Score based on actual candidate performance — never give all zeros if the candidate participated.");
 
     const fallback = {
       overallScore: 50,
       metrics: { technicalDepth: 50, communication: 50, problemSolving: 50, confidence: 50 },
       strengths: ["Interview completed"],
-      growth: ["Provide more detailed answers"],
+      areasForGrowth: ["Provide more detailed answers"],
       suggestedTopics: ["Core fundamentals"]
     };
 
@@ -65,18 +112,16 @@ exports.generateReport = async (req, res) => {
       } catch (e) {
         console.error('JSON Parse Failed, using fallback. Raw:', aiResponse.substring(0, 200));
       }
-    } else {
-      console.warn('AI Response was empty, using fallback report.');
     }
 
     // 4. Save Report to DB
     const report = await Report.create({
       sessionId,
       userId: req.user._id,
-      overallScore: evaluation.overallScore || 0,
+      overallScore: Math.round(evaluation.overallScore || 0),
       metrics: evaluation.metrics || fallback.metrics,
       strengths: evaluation.strengths || fallback.strengths,
-      growth: evaluation.growth || fallback.growth,
+      areasForGrowth: evaluation.areasForGrowth || fallback.areasForGrowth,
       suggestedTopics: evaluation.suggestedTopics || fallback.suggestedTopics
     });
 
@@ -86,7 +131,8 @@ exports.generateReport = async (req, res) => {
 
     res.status(201).json({
       success: true,
-      report
+      report,
+      transcript: session.transcript
     });
 
   } catch (error) {
@@ -132,7 +178,15 @@ exports.getReport = async (req, res) => {
     if (!report) {
       return res.status(404).json({ message: 'Report not found' });
     }
-    res.json({ success: true, report });
+    
+    // Also fetch transcript from session
+    const session = await Session.findById(req.params.sessionId).select('transcript');
+    
+    res.json({ 
+      success: true, 
+      report,
+      transcript: session ? session.transcript : []
+    });
   } catch (error) {
     res.status(500).json({ message: 'Server error' });
   }

@@ -1,5 +1,5 @@
 const Session = require('../models/Session');
-const { getAIResponse } = require('../utils/aiService');
+const { getAIResponse, getStreamingAIResponse } = require('../utils/aiService');
 
 exports.handleChat = async (req, res) => {
   const { sessionId } = req.params;
@@ -28,50 +28,102 @@ exports.handleChat = async (req, res) => {
 
     // 3. Construct System Prompt with Resume Context
     const systemPrompt = `
-      You are a Senior Technical Interviewer. 
-      
-      JOB DESCRIPTION: ${session.jobDescription || 'Not provided'}
-      
-      RESUME SUMMARY: ${JSON.stringify(session.profileJson || {})}
-      
-      FULL RESUME TEXT:
-      ${session.resumeText}
+      # Role: Senior Technical Interviewer
+      Simulate a realistic, formal tech interview. Adaptive and neutral tone.
 
-      INSTRUCTIONS:
-      1. Ask ONLY ONE question at a time.
-      2. Briefly judge the user's previous answer (e.g., "Good explanation," or "That's partially correct") before asking the next one.
-      3. Ask counter-questions if the user's answer is vague or weak.
-      4. Methodically cover different sections of the resume (Skills, Experience, Projects). Use the FULL RESUME TEXT for detailed technical questions.
-      5. Align your questions with the JOB DESCRIPTION if provided.
-      6. If the interview is logically concluding, say "Thank you, we're done."
-      7. Keep your response to 3-5 lines maximum.
-      8. Do not repeat questions.
-      9. Avoid asking about too many topics in one go. Ask one question at a time.
-      11. Do not ask any irrelevant questions.
-      12. Do not grasp for too much detail in the answers if the user has already given a detailed answer.
-      13.Dont skip any kind question
-      13. try to cover all the topics mentioned in the resume.
+      # Context
+      - Target Job: ${session.jobDescription || "N/A"}
+      - Candidate Profile: ${JSON.stringify(session.profileJson || {})}
+      - Full Resume Reference: ${session.resumeText.substring(0, 2000)} 
 
+      # Core Workflow
+      1. Start: Greet briefly + "Introduce yourself".
+      2. Strategy: Easy -> Hard. Mix conceptual, practical, and scenarios.
+      3. Follow-up: Always dig deeper (Why? Internals? Trade-offs? Optimization?).
+      4. Dynamic: Strong answer = harder question. Weak/vague = challenge it.
+      5. End: If user says "end" or logically done, say "Thank you, we're done."
+
+      # Strict Rules
+      - Ask ONLY ONE question at a time.
+      - NO solutions or tutoring. Stay in character.
+      - Briefly react to answers (e.g., "Correct," "I see...") before next question.
+      - Methodically cover Skills, Projects, and Experience.
+      - Keep responses concise (3-5 lines max).
+
+      # Pacing & Topic Switching (CRITICAL)
+      - **Topic Rotation**: Do not spend more than 4-5 exchanges on a single topic, project, or skill.
+      - **Pivoting**: After 4-5 questions on one area, move to a different part of the resume or a different skill.
+      - **Transitional Phrases**: Use phrases like "Moving on to...", "Let's shift gears to...", or "I'd like to ask about..." when switching.
+
+      # Formatting Rules (CRITICAL for Frontend)
+      - Use **Bold** for key technical terms or important concepts.
+      - Use *Italics* for subtle emphasis or conversational nuances.
+      - Use bullet points (-) for lists or multiple options.
+      - Use double line breaks (\n\n) between different sections or thoughts to ensure proper hierarchy.
+      - Ensure a clean, structured visual hierarchy that is easy to read.
+
+      # Edge Cases
+      - "I don't know" -> Give a tiny hint, then move on.
+      - Silence -> Prompt once, then pivot.
     `;
 
-    // 4. Get AI Response with full history
-    const aiMessage = await getAIResponse(history, systemPrompt);
+    // 4. Set Headers for Streaming (SSE)
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
 
-    // 5. Save AI Response to Transcript
-    session.transcript.push({
-      role: 'assistant',
-      content: aiMessage
+    // 5. Get Streaming AI Response
+    const stream = await getStreamingAIResponse(history, systemPrompt);
+    
+    let fullContent = "";
+
+    stream.on('data', (chunk) => {
+      const lines = chunk.toString().split('\n');
+      for (const line of lines) {
+        if (line.trim() === 'data: [DONE]') {
+          // Stream complete
+          return;
+        }
+        if (line.startsWith('data: ')) {
+          try {
+            const data = JSON.parse(line.substring(6));
+            const content = data.choices[0]?.delta?.content || "";
+            if (content) {
+              fullContent += content;
+              res.write(`data: ${JSON.stringify({ content })}\n\n`);
+            }
+          } catch (e) {
+            // Ignore parse errors for non-JSON lines
+          }
+        }
+      }
     });
 
-    await session.save();
+    stream.on('end', async () => {
+      // 6. Save Full AI Response to Transcript
+      session.transcript.push({
+        role: 'assistant',
+        content: fullContent
+      });
+      await session.save();
 
-    res.json({
-      reply: aiMessage,
-      status: session.status
+      res.write(`data: [DONE]\n\n`);
+      res.end();
+    });
+
+    stream.on('error', (err) => {
+      console.error('Streaming Error:', err);
+      res.write(`data: ${JSON.stringify({ error: "Stream interrupted" })}\n\n`);
+      res.end();
     });
 
   } catch (error) {
     console.error('Chat Error:', error.message);
-    res.status(500).json({ message: 'Error communicating with AI.' });
+    if (!res.headersSent) {
+      res.status(500).json({ message: 'Error communicating with AI.' });
+    } else {
+      res.write(`data: ${JSON.stringify({ error: "Server Error" })}\n\n`);
+      res.end();
+    }
   }
 };
