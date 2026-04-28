@@ -35,7 +35,6 @@ exports.ingestDocument = async (req, res) => {
       resumeText = pdfData.text;
       resumeName = req.file.originalname;
 
-      console.log(`[Ingest] Extracted text from ${resumeName}, length: ${resumeText?.length}`);
 
       if (!resumeText || resumeText.trim().length === 0) {
         console.error('[Ingest] Empty text extracted from PDF');
