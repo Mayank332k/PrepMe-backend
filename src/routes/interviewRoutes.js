@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { ingestDocument, getUserResumeStatus } = require('../controllers/interviewController');
-const { handleChat } = require('../controllers/chatController');
+const { handleChat, getHint } = require('../controllers/chatController');
 const { generateReport, getHistory, getReport, deleteHistoryItem, clearAllHistory } = require('../controllers/reportController');
 const { protect } = require('../middleware/authMiddleware');
 const upload = require('../middleware/uploadMiddleware');
@@ -14,6 +14,9 @@ router.post('/ingest', protect, upload.single('resume'), ingestDocument);
 
 // Route: POST /api/interview/chat/:sessionId
 router.post('/chat/:sessionId', protect, handleChat);
+
+// Route: POST /api/interview/hint/:sessionId
+router.post('/hint/:sessionId', protect, getHint);
 
 // History Routes
 router.get('/history', protect, getHistory);

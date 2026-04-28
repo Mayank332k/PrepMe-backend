@@ -28,43 +28,39 @@ exports.handleChat = async (req, res) => {
 
     // 3. Construct System Prompt with Resume Context
     const systemPrompt = `
-      # Role: Senior Technical Interviewer
-      Simulate a realistic, formal tech interview. Adaptive and neutral tone.
+      # Role: Technical Interviewer
+      Simulate a REAL-LIFE technical interview that starts with fundamentals.
 
       # Context
       - Target Job: ${session.jobDescription || "N/A"}
       - Candidate Profile: ${JSON.stringify(session.profileJson || {})}
-      - Full Resume Reference: ${session.resumeText.substring(0, 2000)} 
+      - Resume Reference: ${session.resumeText.substring(0, 1500)} 
 
-      # Core Workflow
-      1. Start: Greet briefly + "Introduce yourself".
-      2. Strategy: Easy -> Hard. Mix conceptual, practical, and scenarios.
-      3. Follow-up: Always dig deeper (Why? Internals? Trade-offs? Optimization?).
-      4. Dynamic: Strong answer = harder question. Weak/vague = challenge it.
-      5. End: If user says "end" or logically done, say "Thank you, we're done."
+      # Interview Phases (STRICT SEQUENTIAL ORDER)
+      
+      ## Phase 1: Tech Stack & Choice (1-2 questions)
+      - "Why MERN?" or "What made you choose Node.js over other backend tech?"
 
-      # Strict Rules
-      - Ask ONLY ONE question at a time.
-      - NO solutions or tutoring. Stay in character.
-      - Briefly react to answers (e.g., "Correct," "I see...") before next question.
-      - Methodically cover Skills, Projects, and Experience.
-      - Keep responses concise (3-5 lines max).
+      ## Phase 2: CS Fundamentals - OOPS & Basic DSA (2-3 questions)
+      - **OOPS**: Ask about Classes, Inheritance, Encapsulation, or Polymorphism in JS context.
+      - **DSA**: Ask basic logic questions (e.g., Array manipulation, String reversal, or how a specific Data Structure like a Map/Set works).
 
-      # Pacing & Topic Switching (CRITICAL)
-      - **Topic Rotation**: Do not spend more than 4-5 exchanges on a single topic, project, or skill.
-      - **Pivoting**: After 4-5 questions on one area, move to a different part of the resume or a different skill.
-      - **Transitional Phrases**: Use phrases like "Moving on to...", "Let's shift gears to...", or "I'd like to ask about..." when switching.
+      ## Phase 3: Programming Language (JavaScript) (2-3 questions)
+      - **Core JS**: Closures, Event Loop, Promises, Async/Await, Prototypes.
+      - *CRITICAL*: Do NOT move ahead until JS fundamentals are clear.
 
-      # Formatting Rules (CRITICAL for Frontend)
-      - Use **Bold** for key technical terms or important concepts.
-      - Use *Italics* for subtle emphasis or conversational nuances.
-      - Use bullet points (-) for lists or multiple options.
-      - Use double line breaks (\n\n) between different sections or thoughts to ensure proper hierarchy.
-      - Ensure a clean, structured visual hierarchy that is easy to read.
+      ## Phase 4: Framework (React) (2-3 questions)
+      - **React**: Hooks (useEffect, useMemo, etc.), Virtual DOM, Props vs State.
 
-      # Edge Cases
-      - "I don't know" -> Give a tiny hint, then move on.
-      - Silence -> Prompt once, then pivot.
+      ## Phase 5: Projects & Practical Implementation (ONLY AT THE END)
+      - Only now ask about "PrepMe" or "How you designed your DB".
+      - **NO System Design** or **Architecture** questions before this phase.
+
+      # Core Rules (MANDATORY)
+      1. **Strict Sequencing**: You are FORBIDDEN from jumping to Phase 5 before completing Phases 1-4.
+      2. **One at a Time**: Only ONE specific technical question per message.
+      3. **Evaluation**: 70% of the interview should be about Fundamentals (Phases 1-4).
+      4. **Conversational**: If they give a short answer, dig deeper into the "How" or "Why".
     `;
 
     // 4. Set Headers for Streaming (SSE)
@@ -125,5 +121,58 @@ exports.handleChat = async (req, res) => {
       res.write(`data: ${JSON.stringify({ error: "Server Error" })}\n\n`);
       res.end();
     }
+  }
+};
+
+
+exports.getHint = async (req, res) => {
+  const { sessionId } = req.params;
+  const { messageHistory } = req.body;
+
+  try {
+    const session = await Session.findById(sessionId);
+    if (!session) {
+      return res.status(404).json({ message: 'Session not found.' });
+    }
+
+    const history = session.transcript.map(msg => ({
+      role: msg.role,
+      content: msg.content
+    }));
+
+    // Sirf last 2-3 important exchanges nikalna context ke liye
+    // Thoda zyada history (last 6 messages) for better context
+    const lastContext = history.slice(-6).map(m => `${m.role.toUpperCase()}: ${m.content}`).join('\n');
+
+    const hintPrompt = `
+      You are a technical interview assistant. 
+      The candidate is stuck. Your task is to provide a "Conceptual Bridge" that brings them significantly closer to the answer without revealing it entirely.
+
+      # Context
+      - Job: ${session.jobDescription || "N/A"}
+      - Context: ${session.resumeText.substring(0, 500)}
+
+      # Last Exchange
+      ${lastContext}
+
+      # Task (CRITICAL)
+      1. Analyze the last question asked by the interviewer.
+      2. Provide a directional hint that points to the core logic or technical concept needed.
+      3. **Strictly NO counter-questions.** Do not ask "Have you thought about...?" or "What do you think?".
+      4. Speak in a helpful, informative tone. Give a clue like: "Focus on how **[Concept]** manages **[Specific Detail]**." or "Think about using a **[Data Structure]** to optimize the lookup."
+
+      # Rules
+      - Max 25 words.
+      - Use **bold** for the key technical part.
+      - No introductory text.
+    `;
+
+    // Empty array bhej rahe hain taaki AI sirf hamare formatted prompt par focus kare
+    const hint = await getAIResponse([], hintPrompt);
+    res.status(200).json({ success: true, hint });
+
+  } catch (error) {
+    console.error('Hint Error:', error);
+    res.status(500).json({ success: false, message: 'Failed to generate hint.' });
   }
 };
