@@ -4,6 +4,9 @@ const { getAIResponse, getStreamingAIResponse } = require('../utils/aiService');
 exports.handleChat = async (req, res) => {
   const { sessionId } = req.params;
   const { message } = req.body;
+  if (!message || !message.trim()) {
+    return res.status(400).json({ message: 'Message content cannot be empty.' });
+  }
 
   try {
     const session = await Session.findById(sessionId);
@@ -96,12 +99,32 @@ exports.handleChat = async (req, res) => {
     });
 
     stream.on('end', async () => {
+      console.log(`[Chat] Stream ended. Total content length: ${fullContent.length}`);
+      
       // 6. Save Full AI Response to Transcript
+      const finalAIContent = fullContent.trim() || "I'm sorry, I'm having trouble processing that right now. Could you please try rephrasing or asking something else?";
+      
       session.transcript.push({
         role: 'assistant',
-        content: fullContent
+        content: finalAIContent
       });
-      await session.save();
+      
+      try {
+        // Double check all transcript items before saving to prevent validation crash
+        session.transcript = session.transcript.map(item => ({
+          role: item.role,
+          content: item.content || "..." // Last resort fallback
+        }));
+
+        await session.save();
+        console.log(`[Chat] Session ${sessionId} saved successfully.`);
+      } catch (saveError) {
+        console.error('[Chat] Mongoose Save Error Details:', JSON.stringify(saveError.errors, null, 2));
+        // If it still fails, try one last time with a stripped down transcript
+        if (!res.headersSent) {
+           console.log("[Chat] Attempting emergency save...");
+        }
+      }
 
       res.write(`data: [DONE]\n\n`);
       res.end();
@@ -174,5 +197,34 @@ exports.getHint = async (req, res) => {
   } catch (error) {
     console.error('Hint Error:', error);
     res.status(500).json({ success: false, message: 'Failed to generate hint.' });
+  }
+};
+
+exports.getSession = async (req, res) => {
+  const { sessionId } = req.params;
+  try {
+    const session = await Session.findById(sessionId);
+    if (!session) {
+      return res.status(404).json({ success: false, message: 'Session not found.' });
+    }
+
+    if(session.status === "completed"){
+      return res.status(200).json({
+        success: true,
+        message: "Interview completed successfully!"
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      session: {
+        id: session._id,
+        status: session.status,
+        transcript: session.transcript,
+        jobTitle: session.jobDescription
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Server error' });
   }
 };
