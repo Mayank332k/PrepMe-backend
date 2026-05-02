@@ -1,7 +1,8 @@
 const axios = require('axios');
+const { getSummarizerPrompt, getResumeParsingPrompt } = require('./prompts');
 
 const SARVAM_API_KEY = process.env.SARVAM_API_KEY;
-const SARVAM_MODEL = process.env.SARVAM_MODEL_NAME || 'sarvam-105b';
+const SARVAM_MODEL = process.env.SARVAM_MODEL_NAME;
 
 const sarvamApi = axios.create({
   baseURL: 'https://api.sarvam.ai/v1',
@@ -12,12 +13,14 @@ const sarvamApi = axios.create({
 });
 
 /**
- * Generate AI Response based on context and message
+ * @param {Array} messages 
+ * @param {string} systemPrompt 
+ * @param {string} modelOverride 
  */
-async function getAIResponse(messages, systemPrompt) {
+async function getAIResponse(messages, systemPrompt, modelOverride = null) {
   try {
     const response = await sarvamApi.post('/chat/completions', {
-      model: SARVAM_MODEL,
+      model: modelOverride || SARVAM_MODEL,
       messages: [
         { role: 'system', content: systemPrompt },
         ...messages
@@ -26,16 +29,22 @@ async function getAIResponse(messages, systemPrompt) {
       max_tokens: 2000,
     });
 
-    return response.data?.choices?.[0]?.message?.content || null;
+    let content = response.data?.choices?.[0]?.message?.content || null;
+
+    // Clean up internal thinking process if model returns <think>...</think> tags
+    // temp fix for now..
+    if (content) {
+      content = content.replace(/<think>[\s\S]*?<\/think>/g, '').trim();
+    }
+
+    return content;
   } catch (error) {
     console.error('Sarvam AI Error:', error.response?.data || error.message);
     throw new Error('AI Service is currently unavailable.');
   }
 }
 
-/**
- * Generate a streaming AI response
- */
+
 async function getStreamingAIResponse(messages, systemPrompt) {
   try {
     const response = await sarvamApi.post('/chat/completions', {
@@ -62,24 +71,7 @@ async function getStreamingAIResponse(messages, systemPrompt) {
  * Specifically parses resume text into structured Profile JSON
  */
 async function parseResumeWithAI(resumeText) {
-  const prompt = `
-    Analyze this resume and extract details in STRICT JSON format. 
-    Resume Text: ${resumeText.substring(0, 4000)} 
-    
-    RESPONSE FORMAT:
-    {
-      "name": "Candidate Name",
-      "summary": "Short professional summary",
-      "topSkills": ["skill1", "skill2"],
-      "experienceYears": 0,
-      "strengths": ["strength1"]
-    }
-
-    STRICT RULES:
-    1. ONLY return the JSON. No conversational text.
-    2. Ensure the JSON is valid and all strings are closed.
-    3. If something is missing, use "Not Specified".
-  `;
+  const prompt = getResumeParsingPrompt(resumeText);
 
   try {
     const response = await getAIResponse([{ role: 'user', content: prompt }], "You are a JSON generator.");
@@ -112,8 +104,26 @@ async function parseResumeWithAI(resumeText) {
   }
 }
 
+/**
+ * Summarize a batch of messages and combine with previous summary
+ */
+async function summarizeHistory(oldSummary, newMessages) {
+  const messagesToSummarize = newMessages.map(m => `${m.role.toUpperCase()}: ${m.content}`).join('\n');
+  const prompt = getSummarizerPrompt(oldSummary, messagesToSummarize);
+
+  try {
+    const summary = await getAIResponse([{ role: 'user', content: prompt }], "You are a concise summarizer.");
+    return summary;
+  } catch (error) {
+    console.error('Summarization Error:', error.message);
+    return oldSummary; // Fallback to old summary if it fails
+  }
+}
+
 module.exports = {
   getAIResponse,
   getStreamingAIResponse,
+  summarizeHistory,
   parseResumeWithAI
 };
+

@@ -5,7 +5,6 @@ const { parseResumeWithAI, getAIResponse } = require('../utils/aiService');
 
 const User = require('../models/User');
 
-// @desc    Get user's resume status (if it exists)
 exports.getUserResumeStatus = async (req, res) => {
   try {
     const user = await User.findById(req.user._id).select('resumeName resumeProfile');
@@ -20,7 +19,6 @@ exports.getUserResumeStatus = async (req, res) => {
   }
 };
 
-// @desc    Handle Document upload and session initialization
 exports.ingestDocument = async (req, res) => {
   try {
     let resumeText;
@@ -30,21 +28,28 @@ exports.ingestDocument = async (req, res) => {
     const user = await User.findById(req.user._id);
 
     if (req.file) {
-      // 1. New File Uploaded - Extract Text from Buffer
-      const pdfData = await pdf(req.file.buffer);
-      resumeText = pdfData.text;
-      resumeName = req.file.originalname;
+      try {
+        const pdfData = await pdf(req.file.buffer);
+        resumeText = pdfData.text;
+        resumeName = req.file.originalname;
 
-
-      if (!resumeText || resumeText.trim().length === 0) {
-        console.error('[Ingest] Empty text extracted from PDF');
-        return res.status(400).json({ message: 'Could not extract text from PDF.' });
+        if (!resumeText || resumeText.trim().length === 0) {
+          console.error('[Ingest] Empty text extracted from PDF');
+          return res.status(422).json({ 
+            success: false, 
+            message: 'Could not extract text from the PDF. Please ensure it is not an image-only scan.' 
+          });
+        }
+      } catch (pdfError) {
+        console.error('[Ingest] PDF Parsing Error:', pdfError.message);
+        return res.status(422).json({ 
+          success: false, 
+          message: 'Failed to process the PDF file. It might be corrupted or password protected.' 
+        });
       }
 
-      // 2. AI Parsing (Resume Structure)
       profileJson = await parseResumeWithAI(resumeText);
 
-      // 3. Save to User Profile for future use
       user.resumeText = resumeText;
       user.resumeName = resumeName;
       user.resumeProfile = profileJson;
@@ -59,7 +64,25 @@ exports.ingestDocument = async (req, res) => {
       profileJson = user.resumeProfile;
     }
 
-    // 5. Create Session
+    // 5. Check for existing "ongoing" session created in the last 10 seconds (Double-tap prevention)
+    const existingSession = await Session.findOne({
+      userId: req.user._id,
+      status: 'ongoing',
+      createdAt: { $gt: new Date(Date.now() - 10000) } // 10 seconds threshold
+    });
+
+    if (existingSession) {
+      console.log(`[Ingest] Duplicate session request detected for user ${req.user._id}. Returning existing session.`);
+      return res.status(200).json({
+        success: true,
+        sessionId: existingSession._id,
+        firstMessage: existingSession.transcript[0]?.content || "",
+        profile: existingSession.profileJson,
+        resumeName: existingSession.resumeName
+      });
+    }
+
+    // 6. Create New Session
     const session = await Session.create({
       userId: req.user._id,
       resumeText: resumeText,

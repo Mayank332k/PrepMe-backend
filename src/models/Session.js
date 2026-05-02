@@ -42,6 +42,14 @@ const sessionSchema = new mongoose.Schema({
     enum: ['ongoing', 'completed'],
     default: 'ongoing',
   },
+  summary: {
+    type: String,
+    default: "",
+  },
+  lastSummarizedIndex: {
+    type: Number,
+    default: 0,
+  },
   createdAt: {
     type: Date,
     default: Date.now,
