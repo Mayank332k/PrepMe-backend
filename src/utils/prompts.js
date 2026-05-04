@@ -42,7 +42,7 @@ exports.getInterviewerPrompt = (session) => {
  */
 exports.getSummarizerPrompt = (oldSummary, messagesToSummarize) => {
   return `
-    You are an expert at condensing interview transcripts.
+    You are an expert at condensing interview transcripts while preserving evaluation data.
     
     # Task
     Update the existing summary of the interview by incorporating the NEW MESSAGES below.
@@ -55,9 +55,12 @@ exports.getSummarizerPrompt = (oldSummary, messagesToSummarize) => {
     ${messagesToSummarize}
     
     # Guidelines
-    - **NO CONTEXT LOSS (STRICT):** Ensure no critical technical information, candidate strengths, or specific discussed topics are lost during summarization. The summary must be a perfect condensed version of the interview.
-    - **PHASE MEMORY (CRITICAL):** Explicitly identify which Interview Phase is currently active and which phases have already been completed.
-    - Highlight key technical strengths, candidate responses, and areas of improvement.
+    - **NO CONTEXT LOSS (STRICT):** Ensure no critical technical information or discussed topics are lost.
+    - **PHASE MEMORY (CRITICAL):** Identify which Interview Phase is currently active and which are completed.
+    - **GRANULAR EVALUATION (NEW):** 
+      - Capture **specific technical strengths** (e.g., "Solid grasp of Prototypal Inheritance").
+      - Capture **specific struggles/mistakes** (e.g., "Confused about the difference between Map and WeakMap").
+      - Use precise technical terminology.
     - Keep it purely informative, objective, and technical.
   `;
 };
@@ -121,50 +124,43 @@ exports.getResumeParsingPrompt = (resumeText) => {
  */
 exports.getReportPrompt = (conversation, summary, jobDescription) => {
   return `
-    # Role: Senior Interview Evaluator
-    You are a STRICT, FAIR, and EVIDENCE-BASED interview evaluator. Your evaluation must be 99% accurate.
+    # Role: Senior Interview Auditor & Technical Evaluator
+    Your mission is to provide a 99% ACCURATE technical evaluation of the following interview. 
+    You must be unbiased, strict, and evidence-based.
 
-    # GOLDEN RULE
-    Every single score you give MUST be backed by a specific example from the transcript or summary. If you cannot point to evidence, do NOT inflate the score.
-
-    # Available Context
+    # Context
     - Target Job: ${jobDescription || "N/A"}
-    - Conversation Summary (covers earlier parts of interview): ${summary || "No summary available."}
-    - Recent Transcript (raw messages): 
+    - Conversation Summary: ${summary || "No summary available."}
+    - FULL Interview Transcript: 
     ${conversation}
 
-    # EVALUATION METHOD (Follow Step-by-Step)
-    Step 1: Read the ENTIRE summary + transcript carefully.
-    Step 2: For EACH metric below, find specific quotes/moments from the transcript that justify your score.
-    Step 3: Assign a score using the scoring bands below.
-    Step 4: Calculate the overall score using the weighted formula.
+    # MANDATORY EVALUATION STEPS
+    1. **PHASE-BY-PHASE REVIEW:** Walk through each phase of the interview (language specific questions, DSA, Projects, etc.).
+    2. **EVIDENCE EXTRACTION:** For every metric, extract specific technical keywords or quotes that the candidate mentioned.
+    3. **LOGICAL SCORING:** Apply the scoring rubric based strictly on the extracted evidence.
 
-    # Scoring Bands (0-100 scale per metric)
-    - 0-10:   No participation. Completely silent, refused to answer, or only gibberish.
-    - 11-25:  Attempted but mostly wrong or irrelevant. Shows no understanding.
-    - 26-40:  Surface-level answers. Mentioned correct terms but couldn't explain them.
-    - 41-55:  Basic understanding. Gave partially correct answers with some gaps.
-    - 56-70:  Solid answers. Demonstrated real understanding with examples or reasoning.
-    - 71-85:  Strong performance. Clear explanations, trade-offs discussed, practical knowledge shown.
-    - 86-100: Exceptional. Deep internals knowledge, edge cases covered, real-world insights shared.
+    # Scoring Rubric (Use your intelligence to decide exact scores within these logical bands)
+    - **Score 0:** ONLY if the candidate was completely silent or provided zero relevant technical content for that metric.
+    - **Score 1-40 (Surface Level):** Candidate attempted the answers but they were mostly incorrect, very vague, or only mentioned surface-level terms without knowing how they work.
+    - **Score 41-69 (Solid/Practical):** Candidate has a good grasp of the basics. They gave correct answers and could explain the "How". They show practical usage knowledge.
+    - **Score 70-100 (Expert/Internal):** **RESTRICTED BAND.** Only give this if the candidate discussed the "Why", internal architecture, trade-offs (e.g., "Why X over Y"), or edge cases.
 
-    # Metrics (with weights)
-    1. **Technical Depth (40%)**: Did they explain HOW and WHY things work? Did they go beyond naming tools? Look for: specific explanations, internal workings, comparisons between approaches.
-    2. **Problem Solving (30%)**: Did they show logical thinking? Look for: structured approaches, debugging mindset, trade-off analysis, ability to break down problems. Even describing an approach counts.
-    3. **Communication (20%)**: Were their answers structured and clear? Look for: coherent sentences, organized thoughts, ability to articulate technical concepts. Short but clear answers still score well.
-    4. **Confidence (10%)**: Did they answer with conviction? Admitting gaps honestly is GOOD (score 40-60 for that). Constant hesitation or "I don't know" with no attempt lowers this.
+    # Metrics (Weighted)
+    1. **Technical Depth (40%)**: Focus on the accuracy and depth of technical explanations. 
+    2. **Problem Solving (30%)**: Focus on their logical approach, ability to break down problems, and trade-off analysis.
+    3. **Communication (20%)**: Focus on clarity, structure of answers, and professional articulation of tech concepts.
+    4. **Confidence (10%)**: Focus on certainty in answers and honest admission of gaps.
 
-    # Scoring Formula
-    OverallScore = Round((TechnicalDepth * 0.4) + (ProblemSolving * 0.3) + (Communication * 0.2) + (Confidence * 0.1))
+    # Content Requirements (HIGH GRANULARITY)
+    - **Strengths**: Provide **exactly 3-5 items**. Each MUST be concept-specific (e.g., "Deep understanding of Node.js Event Loop" or "Clean implementation of Binary Search").
+    - **AreasForGrowth**: Provide **exactly 3-5 items**. Be extremely specific about what was missed (e.g., "Struggled with SQL Indexing internals" or "Could not explain Big O for recursive calls").
+    - **SuggestedTopics**: Provide **exactly 3-5 items**. Suggest specific sub-topics, not broad categories (e.g., "JWT Authentication Flow" instead of "Security").
 
-    # Content Rules (STRICT)
-    - **Strengths**: List ONLY what the candidate ACTUALLY demonstrated with evidence. Provide **exactly 3-5 items**. Each must reference a specific topic or moment.
-    - **AreasForGrowth**: List specific weak points where the candidate struggled or gave incorrect/incomplete answers. Provide **exactly 3-5 items**. Be specific (e.g., "Could not explain event loop phases" not "Needs to improve JS").
-    - **SuggestedTopics**: Based on their specific weaknesses, suggest exact topics to study. Provide **exactly 3-5 items**.
-    - **ZERO TOLERANCE for resume assumptions.** Score ONLY what was said during the interview.
-    - **NO motivational fluff.** No "Great job!" or "Keep going!". Be purely analytical.
+    # JSON Output Rules
+    - Your response must be **ONLY valid JSON**.
+    - Do NOT include markdown blocks (\`\`\`json).
+    - Ensure all numbers are integers.
 
-    # Output ONLY valid JSON (no extra text, no markdown):
     {
       "overallScore": <number 0-100>,
       "metrics": {
@@ -173,9 +169,10 @@ exports.getReportPrompt = (conversation, summary, jobDescription) => {
         "problemSolving": <number 0-100>,
         "confidence": <number 0-100>
       },
-      "strengths": ["<specific evidence-based string>", ...],
-      "areasForGrowth": ["<specific evidence-based string>", ...],
-      "suggestedTopics": ["<specific topic string>", ...]
+      "phaseAnalysis": "A detailed 2-3 sentence overview covering their performance in core language vs DSA vs Projects.",
+      "strengths": ["<detailed string with tech evidence>", ...],
+      "areasForGrowth": ["<detailed string with specific gap>", ...],
+      "suggestedTopics": ["<specific sub-topic to study>", ...]
     }
   `;
 };

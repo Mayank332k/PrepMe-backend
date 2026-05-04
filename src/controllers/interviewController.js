@@ -64,7 +64,7 @@ exports.ingestDocument = async (req, res) => {
       profileJson = user.resumeProfile;
     }
 
-    // 5. Check for existing "ongoing" session created in the last 10 seconds (Double-tap prevention)
+    // 5. Checking for existing "ongoing" session created in the last 10 seconds (Double-tap prevention)
     const existingSession = await Session.findOne({
       userId: req.user._id,
       status: 'ongoing',

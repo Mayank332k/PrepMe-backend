@@ -33,37 +33,47 @@ exports.generateReport = async (req, res) => {
       return res.status(201).json({ success: true, report: zeroReport });
     }
 
-    let conversation = session.transcript.map(m => `${m.role[0]}: ${m.content}`).join('\n');
-    if (conversation.length > 5000) conversation = '...' + conversation.slice(-5000);
+    // 2. Hybrid Context for Accuracy & Speed
+    // Send the full summary (Past) + only un-summarized messages (Recent)
+    const unsummarizedMessages = session.transcript.slice(session.lastSummarizedIndex || 0);
+    const recentTranscript = unsummarizedMessages.map(m => `${m.role[0].toUpperCase()}: ${m.content}`).join('\n');
+    
+    console.log(`[Report] Context Stats - Summary Length: ${session.summary?.length || 0}, Recent Messages: ${unsummarizedMessages.length}`);
 
-    // 2. Use Summary + Transcript for maximum accuracy
-    const evaluationPrompt = getReportPrompt(conversation, session.summary || '', session.jobDescription);
+    const evaluationPrompt = getReportPrompt(recentTranscript, session.summary || '', session.jobDescription);
 
     // 3. Get AI Evaluation
-    const aiResponse = await getAIResponse([{ role: 'user', content: evaluationPrompt }], "You are a strict, evidence-based interview evaluator. Return ONLY valid JSON. Every score must be justified by specific examples from the transcript.");
+    const aiResponse = await getAIResponse([{ role: 'user', content: evaluationPrompt }], "You are a strict, evidence-based interview evaluator. Return ONLY valid JSON.");
 
-    const fallback = {
-      overallScore: 50,
-      metrics: { technicalDepth: 50, communication: 50, problemSolving: 50, confidence: 50 },
-      strengths: ["Interview completed"],
-      areasForGrowth: ["Provide more detailed answers"],
-      suggestedTopics: ["Core fundamentals"]
-    };
+    console.log('[Report] Raw AI Evaluation Response:', aiResponse);
 
-    let evaluation = fallback;
+    if (!aiResponse || aiResponse.trim().length === 0) {
+      console.error('[Report] AI returned empty response.');
+      return res.status(502).json({ 
+        success: false, 
+        message: 'AI Service failed to evaluate the interview. Please try generating the report again in a few moments.' 
+      });
+    }
 
-    if (aiResponse && aiResponse.trim().length > 0) {
-      try {
-        const cleaned = aiResponse.replace(/```json/g, '').replace(/```/g, '').trim();
-        const startIdx = cleaned.indexOf('{');
-        const endIdx = cleaned.lastIndexOf('}');
-        
-        if (startIdx !== -1 && endIdx !== -1) {
-          evaluation = JSON.parse(cleaned.substring(startIdx, endIdx + 1));
-        }
-      } catch (e) {
-        console.error('JSON Parse Failed, using fallback. Raw:', aiResponse.substring(0, 200));
+    let evaluation;
+    try {
+      // Robust JSON extraction
+      const startIdx = aiResponse.indexOf('{');
+      const endIdx = aiResponse.lastIndexOf('}');
+      
+      if (startIdx !== -1 && endIdx !== -1) {
+        const jsonString = aiResponse.substring(startIdx, endIdx + 1);
+        evaluation = JSON.parse(jsonString);
+        console.log('[Report] JSON successfully parsed.');
+      } else {
+        throw new Error('No JSON found in response');
       }
+    } catch (e) {
+      console.error('[Report] JSON Parse Failed:', e.message);
+      return res.status(422).json({ 
+        success: false, 
+        message: 'Failed to process AI evaluation. The response was not in a valid format. Please retry.' 
+      });
     }
 
     // 4. Save Report to DB
@@ -71,10 +81,11 @@ exports.generateReport = async (req, res) => {
       sessionId,
       userId: req.user._id,
       overallScore: Math.round(evaluation.overallScore || 0),
-      metrics: evaluation.metrics || fallback.metrics,
-      strengths: evaluation.strengths || fallback.strengths,
-      areasForGrowth: evaluation.areasForGrowth || fallback.areasForGrowth,
-      suggestedTopics: evaluation.suggestedTopics || fallback.suggestedTopics
+      metrics: evaluation.metrics,
+      phaseAnalysis: evaluation.phaseAnalysis,
+      strengths: evaluation.strengths,
+      areasForGrowth: evaluation.areasForGrowth,
+      suggestedTopics: evaluation.suggestedTopics
     });
 
     // 5. Update Session status to completed

@@ -91,12 +91,13 @@ exports.handleChat = async (req, res) => {
         // 7. Background Rolling Summarization
         // Threshold: 15 live messages. If reached, merge first 10 into summary.
         const liveMessagesCount = session.transcript.length - session.lastSummarizedIndex;
-        if (liveMessagesCount > 15) {
+        if (liveMessagesCount >= 15) {
           console.log(`[Summarizer] Triggering summary update for session ${sessionId}...`);
           
+          // Merge first 11 messages, leaving exactly 4 recent ones (15 - 11 = 4)
           const messagesToMerge = session.transcript.slice(
             session.lastSummarizedIndex, 
-            session.lastSummarizedIndex + 10
+            session.lastSummarizedIndex + 11
           );
 
           // We don't 'await' this to avoid blocking the user experience (background task)
@@ -105,7 +106,7 @@ exports.handleChat = async (req, res) => {
               await Session.findByIdAndUpdate(sessionId, {
                 $set: { 
                   summary: newSummary,
-                  lastSummarizedIndex: session.lastSummarizedIndex + 10
+                  lastSummarizedIndex: session.lastSummarizedIndex + 11
                 }
               });
               console.log(`[Summarizer]  =====Summary updated for session== ${sessionId}.`);
@@ -158,11 +159,19 @@ exports.getHint = async (req, res) => {
       content: msg.content
     }));
 
-    const lastContext = history.slice(-4).map(m => `${m.role.toUpperCase()}: ${m.content}`).join('\n');
+    // Sirf last 2-3 important exchanges nikalna context ke liye
+    // Thoda zyada history (last 6 messages) for better context
+    const lastContext = history.slice(-6).map(m => `${m.role.toUpperCase()}: ${m.content}`).join('\n');
 
     const hintPrompt = getHintPrompt(session, lastContext);
 
-    const hint = await getAIResponse([], hintPrompt, 'sarvam-m');
+    // Empty array bhej rahe hain taaki AI sirf hamare formatted prompt par focus kare
+    let hint = await getAIResponse([], hintPrompt);
+
+    if (!hint || hint.trim() === "") {
+      hint = "**Think about how this concept relates to the specific project you mentioned in your resume.**";
+    }
+
     res.status(200).json({ success: true, hint });
 
   } catch (error) {

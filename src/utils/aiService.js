@@ -10,42 +10,13 @@ const sarvamApi = axios.create({
     'api-subscription-key': SARVAM_API_KEY,
     'Content-Type': 'application/json',
   },
+  timeout: 60000, // 1 minute timeout for long reports/transcripts
 });
 
 /**
- * @param {Array} messages 
- * @param {string} systemPrompt 
- * @param {string} modelOverride 
+ * Generate AI Response based on context and message
  */
-async function getAIResponse(messages, systemPrompt, modelOverride = null) {
-  try {
-    const response = await sarvamApi.post('/chat/completions', {
-      model: modelOverride || SARVAM_MODEL,
-      messages: [
-        { role: 'system', content: systemPrompt },
-        ...messages
-      ],
-      temperature: 0.7,
-      max_tokens: 2000,
-    });
-
-    let content = response.data?.choices?.[0]?.message?.content || null;
-
-    // Clean up internal thinking process if model returns <think>...</think> tags
-    // temp fix for now..
-    if (content) {
-      content = content.replace(/<think>[\s\S]*?<\/think>/g, '').trim();
-    }
-
-    return content;
-  } catch (error) {
-    console.error('Sarvam AI Error:', error.response?.data || error.message);
-    throw new Error('AI Service is currently unavailable.');
-  }
-}
-
-
-async function getStreamingAIResponse(messages, systemPrompt) {
+async function getAIResponse(messages, systemPrompt) {
   try {
     const response = await sarvamApi.post('/chat/completions', {
       model: SARVAM_MODEL,
@@ -53,7 +24,35 @@ async function getStreamingAIResponse(messages, systemPrompt) {
         { role: 'system', content: systemPrompt },
         ...messages
       ],
-      temperature: 0.7,
+      temperature: 0.2,
+      max_tokens: 3000,
+    });
+
+    const content = response.data?.choices?.[0]?.message?.content || null;
+    console.log(`[AI Response] Received ${content ? content.length : 0} characters.`);
+    if (content) console.log(`[AI Raw Snippet] ${content.substring(0, 150)}...`);
+    
+    return content;
+  } catch (error) {
+    console.error('Sarvam AI Error:', error.response?.data || error.message);
+    throw new Error('AI Service is currently unavailable.');
+  }
+}
+
+/**
+ * Generate a streaming AI response
+ */
+async function getStreamingAIResponse(messages, systemPrompt) {
+  try {
+    console.log(`[AI Stream] Sending request to Sarvam. Messages: ${messages.length}, SystemPrompt Snippet: ${systemPrompt.substring(0, 100)}...`);
+    
+    const response = await sarvamApi.post('/chat/completions', {
+      model: SARVAM_MODEL,
+      messages: [
+        { role: 'system', content: systemPrompt },
+        ...messages
+      ],
+      temperature: 0.1,
       max_tokens: 2000,
       stream: true,
     }, {
@@ -74,7 +73,8 @@ async function parseResumeWithAI(resumeText) {
   const prompt = getResumeParsingPrompt(resumeText);
 
   try {
-    const response = await getAIResponse([{ role: 'user', content: prompt }], "You are a JSON generator.");
+    console.log('[AI Resume Parsing] Sending text to AI for structured JSON...');
+    const response = await getAIResponse([{ role: 'user', content: prompt }], "You are a specialized Resume-to-JSON extractor.");
     
     console.log('[AI Service] Raw parsing response length:', response?.length);
     
@@ -112,7 +112,10 @@ async function summarizeHistory(oldSummary, newMessages) {
   const prompt = getSummarizerPrompt(oldSummary, messagesToSummarize);
 
   try {
+    console.log('[Summarizer] Requesting updated summary from AI...');
     const summary = await getAIResponse([{ role: 'user', content: prompt }], "You are a concise summarizer.");
+    console.log(`[Summarizer] Received new summary (${summary ? summary.length : 0} chars).`);
+    console.log(`[Summarizer] NEW SUMMARY CONTENT:\n${summary}\n-------------------`);
     return summary;
   } catch (error) {
     console.error('Summarization Error:', error.message);
