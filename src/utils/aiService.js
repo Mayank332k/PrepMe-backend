@@ -1,16 +1,16 @@
 const axios = require('axios');
 const { getSummarizerPrompt, getResumeParsingPrompt } = require('./prompts');
 
-const SARVAM_API_KEY = process.env.SARVAM_API_KEY;
-const SARVAM_MODEL = process.env.SARVAM_MODEL_NAME;
+const NVIDIA_API_KEY = process.env.NVIDIA_API_KEY;
+const NVIDIA_MODEL = "meta/llama-4-maverick-17b-128e-instruct";
 
-const sarvamApi = axios.create({
-  baseURL: 'https://api.sarvam.ai/v1',
+const nvidiaApi = axios.create({
+  baseURL: 'https://integrate.api.nvidia.com/v1',
   headers: {
-    'api-subscription-key': SARVAM_API_KEY,
+    'Authorization': `Bearer ${NVIDIA_API_KEY}`,
     'Content-Type': 'application/json',
   },
-  timeout: 60000, // 1 minute timeout for long reports/transcripts
+  timeout: 60000, 
 });
 
 /**
@@ -18,23 +18,24 @@ const sarvamApi = axios.create({
  */
 async function getAIResponse(messages, systemPrompt) {
   try {
-    const response = await sarvamApi.post('/chat/completions', {
-      model: SARVAM_MODEL,
+    const response = await nvidiaApi.post('/chat/completions', {
+      model: NVIDIA_MODEL,
       messages: [
         { role: 'system', content: systemPrompt },
         ...messages
       ],
       temperature: 0.2,
       max_tokens: 3000,
+      top_p: 0.7,
     });
 
     const content = response.data?.choices?.[0]?.message?.content || null;
-    console.log(`[AI Response] Received ${content ? content.length : 0} characters.`);
-    if (content) console.log(`[AI Raw Snippet] ${content.substring(0, 150)}...`);
+    console.log(`[NVIDIA Response] Received ${content ? content.length : 0} characters.`);
+    if (content) console.log(`[NVIDIA Raw Snippet] ${content.substring(0, 150)}...`);
     
     return content;
   } catch (error) {
-    console.error('Sarvam AI Error:', error.response?.data || error.message);
+    console.error('NVIDIA AI Error:', error.response?.data || error.message);
     throw new Error('AI Service is currently unavailable.');
   }
 }
@@ -44,24 +45,28 @@ async function getAIResponse(messages, systemPrompt) {
  */
 async function getStreamingAIResponse(messages, systemPrompt) {
   try {
-    console.log(`[AI Stream] Sending request to Sarvam. Messages: ${messages.length}, SystemPrompt Snippet: ${systemPrompt.substring(0, 100)}...`);
+    console.log(`[NVIDIA Stream] Sending request to NVIDIA. Messages: ${messages.length}, SystemPrompt Snippet: ${systemPrompt.substring(0, 100)}...`);
     
-    const response = await sarvamApi.post('/chat/completions', {
-      model: SARVAM_MODEL,
+    const response = await nvidiaApi.post('/chat/completions', {
+      model: NVIDIA_MODEL,
       messages: [
         { role: 'system', content: systemPrompt },
         ...messages
       ],
       temperature: 0.1,
       max_tokens: 2000,
+      top_p: 0.7,
       stream: true,
     }, {
-      responseType: 'stream'
+      responseType: 'stream',
+      headers: {
+        'Accept': 'text/event-stream'
+      }
     });
 
     return response.data;
   } catch (error) {
-    console.error('Sarvam Streaming Error:', error.response?.data || error.message);
+    console.error('NVIDIA Streaming Error:', error.response?.data || error.message);
     throw new Error('Streaming service unavailable.');
   }
 }
@@ -73,7 +78,7 @@ async function parseResumeWithAI(resumeText) {
   const prompt = getResumeParsingPrompt(resumeText);
 
   try {
-    console.log('[AI Resume Parsing] Sending text to AI for structured JSON...');
+    console.log('[AI Resume Parsing] Sending text to NVIDIA for structured JSON...');
     const response = await getAIResponse([{ role: 'user', content: prompt }], "You are a specialized Resume-to-JSON extractor.");
     
     console.log('[AI Service] Raw parsing response length:', response?.length);
@@ -112,7 +117,7 @@ async function summarizeHistory(oldSummary, newMessages) {
   const prompt = getSummarizerPrompt(oldSummary, messagesToSummarize);
 
   try {
-    console.log('[Summarizer] Requesting updated summary from AI...');
+    console.log('[Summarizer] Requesting updated summary from NVIDIA...');
     const summary = await getAIResponse([{ role: 'user', content: prompt }], "You are a concise summarizer.");
     console.log(`[Summarizer] Received new summary (${summary ? summary.length : 0} chars).`);
     console.log(`[Summarizer] NEW SUMMARY CONTENT:\n${summary}\n-------------------`);
@@ -129,4 +134,5 @@ module.exports = {
   summarizeHistory,
   parseResumeWithAI
 };
+
 

@@ -169,7 +169,7 @@ exports.getHint = async (req, res) => {
     let hint = await getAIResponse([], hintPrompt);
 
     if (!hint || hint.trim() === "") {
-      hint = "**Think about how this concept relates to the specific project you mentioned in your resume.**";
+      hint = "*Try connecting this concept to the core architecture of your primary project.*";
     }
 
     res.status(200).json({ success: true, hint });

@@ -109,7 +109,7 @@ exports.ingestDocument = async (req, res) => {
       2. Mention that you have reviewed their resume ${req.body.jobDescription ? 'for the target role' : ''}.
       3. Briefly mention one interesting thing from their resume to show you've analyzed it.
       4. Ask how they are doing and if they are ready to begin the interview.
-      5. Keep it brief (2-4 sentences).
+      5. Keep it brief (4-6 sentences).
 
       # Formatting Rules (CRITICAL for Frontend)
       - Use **Bold** for key names or terms.
