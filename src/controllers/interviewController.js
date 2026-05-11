@@ -91,6 +91,11 @@ exports.ingestDocument = async (req, res) => {
       status: 'ongoing',
     });
 
+    // 7. Increment Monthly Usage Count
+    const userToUpdate = await User.findById(req.user._id);
+    userToUpdate.interviewsUsed += 1;
+    await userToUpdate.save();
+
     // 6. Generate Opening Greeting (Phase 1: Ice-breaking)
     const openPrompt = `
       You are an AI Technical Interviewer at PrepMe. 
@@ -130,7 +135,9 @@ exports.ingestDocument = async (req, res) => {
       sessionId: session._id,
       firstMessage,
       profile: profileJson,
-      resumeName: resumeName
+      resumeName: resumeName,
+      interviewsUsed: userToUpdate.interviewsUsed,
+      interviewLimit: userToUpdate.interviewLimit
     });
 
   } catch (error) {

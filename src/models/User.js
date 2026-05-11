@@ -34,6 +34,18 @@ const userSchema = new mongoose.Schema({
   resumeProfile: {
     type: Object, // Stores the parsed AI profile
   },
+  interviewLimit: {
+    type: Number,
+    default: 20, // Default 20 interviews per month
+  },
+  interviewsUsed: {
+    type: Number,
+    default: 0,
+  },
+  lastResetMonth: {
+    type: Number,
+    default: new Date().getMonth(),
+  },
   createdAt: {
     type: Date,
     default: Date.now,

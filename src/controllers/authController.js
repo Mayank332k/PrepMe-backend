@@ -28,6 +28,8 @@ const sendTokenResponse = (user, statusCode, res) => {
       name: user.name,
       email: user.email,
       avatar: user.avatar,
+      interviewLimit: user.interviewLimit,
+      interviewsUsed: user.interviewsUsed,
     },
     accessToken: token,
   });
@@ -150,6 +152,8 @@ exports.getMe = async (req, res) => {
       name: req.user.name,
       email: req.user.email,
       avatar: req.user.avatar,
+      interviewLimit: req.user.interviewLimit,
+      interviewsUsed: req.user.interviewsUsed,
     },
   });
 };

@@ -6,11 +6,13 @@ const { generateReport, getHistory, getReport, deleteHistoryItem, clearAllHistor
 const { protect } = require('../middleware/authMiddleware');
 const upload = require('../middleware/uploadMiddleware');
 
+const { checkInterviewLimit } = require('../middleware/rateLimiter');
+
 // Route: GET /api/interview/resume-status
 router.get('/resume-status', protect, getUserResumeStatus);
 
 // Route: POST /api/interview/ingest (File is now optional if resume is already saved)
-router.post('/ingest', protect, upload.single('resume'), ingestDocument);
+router.post('/ingest', protect, checkInterviewLimit, upload.single('resume'), ingestDocument);
 
 // Route: POST /api/interview/chat/:sessionId
 router.post('/chat/:sessionId', protect, handleChat);
