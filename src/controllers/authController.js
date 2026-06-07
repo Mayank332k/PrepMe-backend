@@ -5,7 +5,7 @@ const bcrypt = require('bcryptjs');
 
 const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
-// JWT Generate karne ke liye helper function
+// JWT Generate 
 const generateToken = (id) => {
   return jwt.sign({ id }, process.env.JWT_SECRET, { expiresIn: '30d' });
 };

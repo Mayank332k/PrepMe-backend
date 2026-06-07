@@ -160,7 +160,6 @@ exports.getHint = async (req, res) => {
     }));
 
     // Sirf last 2-3 important exchanges nikalna context ke liye
-    // Thoda zyada history (last 6 messages) for better context
     const lastContext = history.slice(-6).map(m => `${m.role.toUpperCase()}: ${m.content}`).join('\n');
 
     const hintPrompt = getHintPrompt(session, lastContext);
