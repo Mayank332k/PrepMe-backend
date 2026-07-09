@@ -2,7 +2,7 @@ const axios = require('axios');
 const { getSummarizerPrompt, getResumeParsingPrompt } = require('./prompts');
 
 const NVIDIA_API_KEY = process.env.NVIDIA_API_KEY;
-const NVIDIA_MODEL = "meta/llama-4-maverick-17b-128e-instruct";
+const NVIDIA_MODEL = "meta/llama-3.1-8b-instruct";
 
 const nvidiaApi = axios.create({
   baseURL: 'https://integrate.api.nvidia.com/v1',
