@@ -5,7 +5,8 @@
   "scripts": {
     "start": "nodemon src/server.js",
     "dev": "nodemon src/server.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "seed:users": "node scripts/seedUsers.js"
   },
   "keywords": [],
   "author": "",
@@ -24,7 +25,8 @@
     "jsonwebtoken": "^9.0.3",
     "mongoose": "^9.4.1",
     "multer": "^2.1.1",
-    "pdf-parse": "1.1.1"
+    "pdf-parse": "1.1.1",
+    "@faker-js/faker": "^8.0.0"
   },
   "devDependencies": {
     "nodemon": "^3.1.14"

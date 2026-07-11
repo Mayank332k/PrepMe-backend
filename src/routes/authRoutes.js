@@ -1,7 +1,11 @@
 const express = require('express');
 const router = express.Router();
-const { googleLogin, logout, getMe, login, register } = require('../controllers/authController');
+const { googleLogin, logout, getMe, login, register, checkUsername } = require('../controllers/authController');
 const { protect } = require('../middleware/authMiddleware');
+
+// Route: GET /api/auth/check-username
+router.get('/check-username', checkUsername);
+
 
 // Route: POST /api/auth/register
 router.post('/register', register);

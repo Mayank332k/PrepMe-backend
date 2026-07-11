@@ -26,6 +26,7 @@ const sendTokenResponse = (user, statusCode, res) => {
     user: {
       id: user._id,
       name: user.name,
+      username: user.username,
       email: user.email,
       avatar: user.avatar,
       interviewLimit: user.interviewLimit,
@@ -60,9 +61,18 @@ exports.googleLogin = async (req, res) => {
         await user.save();
       }
     } else {
+      const baseUsername = email.split('@')[0].toLowerCase();
+      let username = baseUsername;
+      let counter = 1;
+      while (await User.findOne({ username })) {
+        username = `${baseUsername}${counter}`;
+        counter++;
+      }
+
       user = await User.create({
         email,
         name,
+        username,
         avatar: picture,
         googleId,
       });
@@ -78,16 +88,21 @@ exports.googleLogin = async (req, res) => {
 
 exports.register = async (req , res) => {
   try {
-    const {name, email , password} = req.body;
+    const {name, email, username, password} = req.body;
+    const userIdentifier = username || email;
 
-    if(!name || !email || !password) {
-      return res.status(400).json({message : "Please provide all the fields (name, email, password)"});
+    if(!name || !userIdentifier || !password) {
+      return res.status(400).json({message : "Please provide all the fields (name, username/email, password)"});
     }
 
-    const user = await User.findOne({email});
-
-    if(user) {
-      return res.status(400).json({message : "User already exists"});
+    const existingUser = await User.findOne({
+      $or: [
+        { username: userIdentifier },
+        ...(email ? [{ email }] : [])
+      ]
+    });
+    if(existingUser) {
+      return res.status(400).json({message : "Username or Email already exists"});
     }
 
     const salt = await bcrypt.genSalt(10);
@@ -95,7 +110,8 @@ exports.register = async (req , res) => {
 
     const newUser = await User.create({ 
       name, 
-      email, 
+      username: userIdentifier,
+      email: email || undefined,
       password : hashedPassword
     });
 
@@ -108,13 +124,19 @@ exports.register = async (req , res) => {
 
 exports.login = async (req , res) => {
   try {
-    const {email , password} = req.body;
+    const {email, username, password} = req.body;
+    const identifier = username || email;
 
-    if(!email || !password) {
+    if(!identifier || !password) {
       return res.status(400).json({message : "Please provide all the fields"});
     }
 
-    const user = await User.findOne({email});
+    const user = await User.findOne({
+      $or: [
+        { email: identifier },
+        { username: identifier }
+      ]
+    });
 
     if(!user) {
       return res.status(400).json({message : "User not found"});
@@ -150,10 +172,54 @@ exports.getMe = async (req, res) => {
     user: {
       id: req.user._id,
       name: req.user.name,
+      username: req.user.username,
       email: req.user.email,
       avatar: req.user.avatar,
       interviewLimit: req.user.interviewLimit,
       interviewsUsed: req.user.interviewsUsed,
     },
   });
+};
+
+exports.checkUsername = async (req, res) => {
+  try {
+    const { username } = req.query;
+
+    if (!username) {
+      return res.status(400).json({ message: 'Username is required' });
+    }
+
+    const lowerUsername = username.toLowerCase().trim();
+
+    const user = await User.findOne({ username: lowerUsername });
+
+    if (!user) {
+      return res.status(200).json({ available: true });
+    }
+
+    // If username exists, generate suggestions
+    const suggestionsToTry = [
+      `${lowerUsername}123`,
+      `${lowerUsername}${new Date().getFullYear()}`,
+      `${lowerUsername}_prep`,
+      `${lowerUsername}01`,
+      `${lowerUsername}_pro`
+    ];
+
+    const existingUsers = await User.find({ username: { $in: suggestionsToTry } }).select('username');
+    const existingUsernames = existingUsers.map(u => u.username);
+    
+    const validSuggestions = suggestionsToTry
+      .filter(s => !existingUsernames.includes(s))
+      .slice(0, 3); // Return top 3 suggestions
+
+    return res.status(200).json({ 
+      available: false, 
+      suggestions: validSuggestions 
+    });
+
+  } catch (error) {
+    console.error('Check Username Error:', error.message);
+    res.status(500).json({ message: 'Internal server error' });
+  }
 };
