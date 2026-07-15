@@ -13,6 +13,21 @@ const generateToken = (id) => {
   return jwt.sign({ id }, process.env.JWT_SECRET, { expiresIn: "30d" });
 };
 
+const calculateNextResetDate = (user) => {
+  const createdAt = new Date(user.createdAt || Date.now());
+  const now = new Date();
+  
+  // Create a date for this month on the same day the user signed up
+  let nextReset = new Date(now.getFullYear(), now.getMonth(), createdAt.getDate());
+  
+  // If this month's reset date has already passed, the next reset is next month
+  if (nextReset <= now) {
+    nextReset.setMonth(nextReset.getMonth() + 1);
+  }
+  
+  return nextReset;
+};
+
 const sendTokenResponse = (user, statusCode, res) => {
   const token = generateToken(user._id);
 
@@ -23,6 +38,8 @@ const sendTokenResponse = (user, statusCode, res) => {
     sameSite: "lax",
     path: "/",
   };
+
+  const nextResetDate = calculateNextResetDate(user);
 
   res
     .status(statusCode)
@@ -37,6 +54,7 @@ const sendTokenResponse = (user, statusCode, res) => {
         avatar: user.avatar,
         interviewLimit: user.interviewLimit,
         interviewsUsed: user.interviewsUsed,
+        nextLimitReset: nextResetDate,
       },
       accessToken: token,
     });
@@ -181,6 +199,8 @@ exports.logout = (req, res) => {
 };
 
 exports.getMe = async (req, res) => {
+  const nextResetDate = calculateNextResetDate(req.user);
+
   res.status(200).json({
     success: true,
     user: {
@@ -191,6 +211,7 @@ exports.getMe = async (req, res) => {
       avatar: req.user.avatar,
       interviewLimit: req.user.interviewLimit,
       interviewsUsed: req.user.interviewsUsed,
+      nextLimitReset: nextResetDate,
     },
   });
 };
