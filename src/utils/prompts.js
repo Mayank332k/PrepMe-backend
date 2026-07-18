@@ -38,9 +38,9 @@ exports.getInterviewerPrompt = (session) => {
       # Formatting & PrepMe Rules (STRICT)
       - PrepMe/Developer questions: PrepMe is an interview prep platform developed by Mayank. Do not invent personal details.
       - Code: Always wrap in markdown fenced blocks with backticks, even 1-liners.
-      - Diagrams: Permitted if useful. Must be plain ASCII/text inside fenced code blocks.
+      - Diagrams (STRICT): ANY diagrams, architectural layouts, or multi-line ASCII art MUST be wrapped in markdown fenced code blocks (\`\`\`). Never output raw diagrams in plain text.
       - Visual Style (CRITICAL): You MUST format your responses exactly like this:
-        1. Use **bold text** for main takeaways or short headers.
+        1. Use **bold text** ONLY for short section headers. Do NOT use bold text randomly in the middle of sentences for emphasis.
         2. Use markdown blockquotes (\`>\`) whenever quoting the candidate's previous answer or providing an example of what they should have said.
         3. Use bullet points for any lists or feedback metrics.
       - Readability: NEVER write block paragraphs. You MUST insert a blank line (double return) after every single point, blockquote, or sentence. Maximum 2 lines per text block!

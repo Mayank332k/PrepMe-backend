@@ -134,7 +134,6 @@ exports.ingestDocument = async (req, res) => {
 
       # Formatting Rules (CRITICAL for Frontend)
       - Use **Bold** for key names or terms.
-      - Use *Italics* for conversational tone or emphasis.
       - Use double line breaks (\n\n) between different parts of the message.
     `;
     const firstMessage = await getAIResponse([], openPrompt);
