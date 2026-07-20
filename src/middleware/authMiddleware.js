@@ -1,21 +1,29 @@
-const jwt = require('jsonwebtoken');
-const User = require('../models/User');
+const jwt = require("jsonwebtoken");
+const User = require("../models/User");
 
 exports.protect = async (req, res, next) => {
   let token;
 
   // 1. Check if token exists in cookies or headers
-  if (req.cookies && req.cookies.token && req.cookies.token !== 'undefined' && req.cookies.token !== 'null') {
+  if (
+    req.cookies &&
+    req.cookies.token &&
+    req.cookies.token !== "undefined" &&
+    req.cookies.token !== "null"
+  ) {
     token = req.cookies.token;
-  } else if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
-    token = req.headers.authorization.split(' ')[1];
+  } else if (
+    req.headers.authorization &&
+    req.headers.authorization.startsWith("Bearer")
+  ) {
+    token = req.headers.authorization.split(" ")[1];
   }
 
   // 2. Error agar token nahi mila
   if (!token) {
-    return res.status(401).json({ 
-      success: false, 
-      message: 'Aap authorized nahi hain. Please login karein.' 
+    return res.status(401).json({
+      success: false,
+      message: "You are not authorized. Please log in.",
     });
   }
 
@@ -27,18 +35,18 @@ exports.protect = async (req, res, next) => {
     req.user = await User.findById(decoded.id);
 
     if (!req.user) {
-      return res.status(401).json({ 
-        success: false, 
-        message: 'Ye user exist nahi karta.' 
+      return res.status(401).json({
+        success: false,
+        message: "User does not exist.",
       });
     }
 
     next(); // Next middleware/route logic
   } catch (err) {
-    console.error('Auth Middleware Error:', err.message);
-    return res.status(401).json({ 
-      success: false, 
-      message: 'Token invalid ya expire ho gaya hai.' 
+    console.error("Auth Middleware Error:", err.message);
+    return res.status(401).json({
+      success: false,
+      message: "Token is invalid or has expired.",
     });
   }
 };
