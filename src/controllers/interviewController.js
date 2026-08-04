@@ -2,6 +2,7 @@ const fs = require("fs");
 const pdf = require("pdf-parse");
 const Session = require("../models/Session");
 const { parseResumeWithAI, getAIResponse } = require("../utils/aiService");
+const { getOpeningGreetingPrompt } = require("../utils/prompts");
 
 const User = require("../models/User");
 
@@ -109,33 +110,11 @@ exports.ingestDocument = async (req, res) => {
     await userToUpdate.save();
 
     // 6. Generate Opening Greeting (Phase 1: Ice-breaking)
-    const openPrompt = `
-      You are an AI Technical Interviewer at PrepMe. 
-      The candidate's name is ${req.user.name || "Candidate"}.
-      
-      RESUME ANALYSIS:
-      - Summary: ${profileJson?.summary || "N/A"}
-      - Top Skills: ${(profileJson?.topSkills || []).join(", ")}
-      - Experience: ${profileJson?.experienceYears || "0"} years
-
-      ${
-        req.body.jobDescription
-          ? `TARGET JOB DESCRIPTION:
-      ${req.body.jobDescription}`
-          : ""
-      }
-
-      INSTRUCTIONS:
-      1. Greet the candidate warmly.
-      2. Mention that you have reviewed their resume ${req.body.jobDescription ? "for the target role" : ""}.
-      3. Briefly mention one interesting thing from their resume to show you've analyzed it.
-      4. Ask how they are doing and if they are ready to begin the interview.
-      5. Keep it brief (4-6 sentences).
-
-      # Formatting Rules (CRITICAL for Frontend)
-      - Use **Bold** for key names or terms.
-      - Use double line breaks (\n\n) between different parts of the message.
-    `;
+    const openPrompt = getOpeningGreetingPrompt(
+      req.user.name,
+      resumeText,
+      req.body.jobDescription
+    );
     const firstMessage = await getAIResponse([], openPrompt);
 
     session.transcript.push({

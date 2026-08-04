@@ -34,7 +34,7 @@ exports.protect = async (req, res, next) => {
     // 4. User fetch karna DB se
     req.user = await User.findById(decoded.id);
 
-    if (!req.user) {
+    if (!req.user) {                    
       return res.status(401).json({
         success: false,
         message: "User does not exist.",

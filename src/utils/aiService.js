@@ -44,9 +44,7 @@ async function getAIResponse(messages, systemPrompt) {
  * Generate a streaming AI response
  */
 async function getStreamingAIResponse(messages, systemPrompt) {
-  try {
-    console.log(`[NVIDIA Stream] Sending request to NVIDIA. Messages: ${messages.length}, SystemPrompt Snippet: ${systemPrompt.substring(0, 100)}...`);
-    
+  try { 
     const response = await nvidiaApi.post('/chat/completions', {
       model: NVIDIA_MODEL,
       messages: [

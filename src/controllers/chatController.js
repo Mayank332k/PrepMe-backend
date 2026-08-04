@@ -195,7 +195,7 @@ exports.getHint = async (req, res) => {
 
     if (!hint || hint.trim() === "") {
       hint =
-        "*Try connecting this concept to the core architecture of your primary project.*";
+        "Try connecting this concept to the core architecture of your primary project.";
     }
 
     res.status(200).json({ success: true, hint });

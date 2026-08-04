@@ -20,7 +20,6 @@ const {
 const { protect } = require("../middleware/authMiddleware");
 const { checkSessionOwnership } = require("../middleware/ownershipMiddleware");
 const upload = require("../middleware/uploadMiddleware");
-
 const { checkInterviewLimit } = require("../middleware/rateLimiter");
 
 // Route: GET /api/interview/resume-status

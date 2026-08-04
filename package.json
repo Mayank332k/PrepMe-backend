@@ -6,7 +6,8 @@
     "start": "nodemon src/server.js",
     "dev": "nodemon src/server.js",
     "test": "echo \"Error: no test specified\" && exit 1",
-    "seed:users": "node scripts/seedUsers.js"
+    "seed:users": "node scripts/seedUsers.js",
+    "seed:history": "node scripts/seedHistory.js"
   },
   "keywords": [],
   "author": "",
