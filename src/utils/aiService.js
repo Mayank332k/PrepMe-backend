@@ -4,13 +4,18 @@ const { getSummarizerPrompt, getResumeParsingPrompt } = require('./prompts');
 const NVIDIA_API_KEY = process.env.NVIDIA_API_KEY;
 const NVIDIA_MODEL = "openai/gpt-oss-20b";
 
+const http = require('http');
+const https = require('https');
+
 const nvidiaApi = axios.create({
   baseURL: 'https://integrate.api.nvidia.com/v1',
   headers: {
     'Authorization': `Bearer ${NVIDIA_API_KEY}`,
     'Content-Type': 'application/json',
   },
-  timeout: 60000, 
+  timeout: 60000,
+  httpAgent: new http.Agent({ keepAlive: true }),
+  httpsAgent: new https.Agent({ keepAlive: true }),
 });
 
 /**
@@ -25,7 +30,7 @@ async function getAIResponse(messages, systemPrompt) {
         ...messages
       ],
       temperature: 0.2,
-      max_tokens: 3000,
+      max_tokens: 400,
       top_p: 0.7,
     });
 
@@ -52,7 +57,7 @@ async function getStreamingAIResponse(messages, systemPrompt) {
         ...messages
       ],
       temperature: 0.1,
-      max_tokens: 2000,
+      max_tokens: 400,
       top_p: 0.7,
       stream: true,
     }, {

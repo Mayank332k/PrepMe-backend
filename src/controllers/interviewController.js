@@ -95,6 +95,12 @@ exports.ingestDocument = async (req, res) => {
       });
     }
 
+    // Mark any existing ongoing sessions for this user as abandoned
+    await Session.updateMany(
+      { userId: req.user._id, status: "ongoing" },
+      { $set: { status: "abandoned" } }
+    );
+
     // 6. Create New Session
     const session = await Session.create({
       userId: req.user._id,
