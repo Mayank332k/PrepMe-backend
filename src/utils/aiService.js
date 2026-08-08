@@ -21,7 +21,7 @@ const nvidiaApi = axios.create({
 /**
  * Generate AI Response based on context and message
  */
-async function getAIResponse(messages, systemPrompt) {
+async function getAIResponse(messages, systemPrompt, maxTokens = 2048) {
   try {
     const response = await nvidiaApi.post('/chat/completions', {
       model: NVIDIA_MODEL,
@@ -30,7 +30,7 @@ async function getAIResponse(messages, systemPrompt) {
         ...messages
       ],
       temperature: 0.2,
-      max_tokens: 400,
+      max_tokens: maxTokens,
       top_p: 0.7,
     });
 
@@ -48,7 +48,7 @@ async function getAIResponse(messages, systemPrompt) {
 /**
  * Generate a streaming AI response
  */
-async function getStreamingAIResponse(messages, systemPrompt) {
+async function getStreamingAIResponse(messages, systemPrompt, maxTokens = 1000) {
   try { 
     const response = await nvidiaApi.post('/chat/completions', {
       model: NVIDIA_MODEL,
@@ -57,7 +57,7 @@ async function getStreamingAIResponse(messages, systemPrompt) {
         ...messages
       ],
       temperature: 0.1,
-      max_tokens: 400,
+      max_tokens: maxTokens,
       top_p: 0.7,
       stream: true,
     }, {
