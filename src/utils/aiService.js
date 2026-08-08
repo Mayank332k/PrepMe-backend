@@ -124,10 +124,10 @@ async function summarizeHistory(oldSummary, newMessages) {
     const summary = await getAIResponse([{ role: 'user', content: prompt }], "You are a concise summarizer.");
     console.log(`[Summarizer] Received new summary (${summary ? summary.length : 0} chars).`);
     console.log(`[Summarizer] NEW SUMMARY CONTENT:\n${summary}\n-------------------`);
-    return summary;
+    return { success: true, summary };
   } catch (error) {
     console.error('Summarization Error:', error.message);
-    return oldSummary; // Fallback to old summary if it fails
+    return { success: false, error: error.message };
   }
 }
 

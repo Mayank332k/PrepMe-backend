@@ -42,37 +42,47 @@ exports.generateReport = async (req, res) => {
 
     const evaluationPrompt = getReportPrompt(recentTranscript, session.summary || '', session.jobDescription);
 
-    // 3. Get AI Evaluation
-    const aiResponse = await getAIResponse([{ role: 'user', content: evaluationPrompt }], "You are a strict, evidence-based interview evaluator. Return ONLY valid JSON.");
+    // 3. Get AI Evaluation with Automatic Retry Mechanism (Up to 3 attempts)
+    let evaluation = null;
+    let attempts = 0;
+    const maxAttempts = 3;
+    let lastError = null;
 
-    console.log('[Report] Raw AI Evaluation Response:', aiResponse);
+    while (attempts < maxAttempts && !evaluation) {
+      attempts++;
+      try {
+        console.log(`[Report] Requesting AI Evaluation (Attempt ${attempts}/${maxAttempts})...`);
+        const aiResponse = await getAIResponse(
+          [{ role: 'user', content: evaluationPrompt }],
+          "You are a strict, evidence-based interview evaluator. Return ONLY valid JSON."
+        );
 
-    if (!aiResponse || aiResponse.trim().length === 0) {
-      console.error('[Report] AI returned empty response.');
-      return res.status(502).json({ 
-        success: false, 
-        message: 'AI Service failed to evaluate the interview. Please try generating the report again in a few moments.' 
-      });
+        if (!aiResponse || aiResponse.trim().length === 0) {
+          throw new Error('AI returned empty response.');
+        }
+
+        const startIdx = aiResponse.indexOf('{');
+        const endIdx = aiResponse.lastIndexOf('}');
+        
+        if (startIdx !== -1 && endIdx !== -1) {
+          const jsonString = aiResponse.substring(startIdx, endIdx + 1);
+          evaluation = JSON.parse(jsonString);
+          console.log(`[Report] JSON successfully parsed on Attempt ${attempts}.`);
+        } else {
+          throw new Error('No valid JSON object found in response.');
+        }
+      } catch (err) {
+        lastError = err.message;
+        console.warn(`[Report] Attempt ${attempts} failed: ${err.message}`);
+      }
     }
 
-    let evaluation;
-    try {
-      // Robust JSON extraction
-      const startIdx = aiResponse.indexOf('{');
-      const endIdx = aiResponse.lastIndexOf('}');
-      
-      if (startIdx !== -1 && endIdx !== -1) {
-        const jsonString = aiResponse.substring(startIdx, endIdx + 1);
-        evaluation = JSON.parse(jsonString);
-        console.log('[Report] JSON successfully parsed.');
-      } else {
-        throw new Error('No JSON found in response');
-      }
-    } catch (e) {
-      console.error('[Report] JSON Parse Failed:', e.message);
-      return res.status(422).json({ 
+    if (!evaluation) {
+      console.error(`[Report] All ${maxAttempts} AI Evaluation attempts failed. Last error: ${lastError}`);
+      return res.status(502).json({ 
         success: false, 
-        message: 'Failed to process AI evaluation. The response was not in a valid format. Please retry.' 
+        message: 'AI Service failed to evaluate the interview. Please try generating the report again.',
+        error: lastError
       });
     }
 

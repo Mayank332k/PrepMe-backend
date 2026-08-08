@@ -117,13 +117,12 @@ exports.handleChat = async (req, res) => {
             session.lastSummarizedIndex + 11,
           );
 
-          // We don't 'await' this to avoid blocking the user experience (background task)
           summarizeHistory(session.summary, messagesToMerge)
-            .then(async (newSummary) => {
-              if (newSummary) {
+            .then(async (result) => {
+              if (result && result.success) {
                 await Session.findByIdAndUpdate(sessionId, {
                   $set: {
-                    summary: newSummary,
+                    summary: result.summary,
                     lastSummarizedIndex: session.lastSummarizedIndex + 11,
                   },
                 });
