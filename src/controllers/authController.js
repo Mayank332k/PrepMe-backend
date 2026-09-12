@@ -63,10 +63,6 @@ const sendTokenResponse = (user, statusCode, res) => {
 exports.googleLogin = async (req, res) => {
   const { idToken } = req.body;
 
-  if (!idToken) {
-    return res.status(400).json({ message: "No Google idToken provided" });
-  }
-
   try {
     const ticket = await client.verifyIdToken({
       idToken,

@@ -2,7 +2,7 @@ const axios = require('axios');
 const { getSummarizerPrompt, getResumeParsingPrompt } = require('./prompts');
 
 const NVIDIA_API_KEY = process.env.NVIDIA_API_KEY;
-const NVIDIA_MODEL = "openai/gpt-oss-20b";
+const NVIDIA_MODEL = "google/diffusiongemma-26b-a4b-it";
 
 const http = require('http');
 const https = require('https');
