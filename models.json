@@ -1,0 +1,449 @@
+{
+  "provider": "NVIDIA NIM (build.nvidia.com)",
+  "source": "https://integrate.api.nvidia.com/v1/models",
+  "generatedAt": "2026-10-25",
+  "defaultModel": "openai/gpt-oss-20b",
+  "freeTier": {
+    "credits": 1000,
+    "rateLimitRpm": 40,
+    "creditCardRequired": false,
+    "note": "All catalog models are usable on the free developer tier; limits are account-wide, not per model. Figures as of 2026-10, verify on build.nvidia.com."
+  },
+  "total": 85,
+  "counts": {
+    "chat": 45,
+    "vision": 11,
+    "code": 8,
+    "safety": 7,
+    "embedding": 10,
+    "parsing": 2,
+    "translation": 2
+  },
+  "models": [
+    {
+      "id": "01-ai/yi-large",
+      "owner": "01-ai",
+      "category": "chat"
+    },
+    {
+      "id": "adept/fuyu-8b",
+      "owner": "adept",
+      "category": "vision"
+    },
+    {
+      "id": "ai21labs/jamba-1.5-large-instruct",
+      "owner": "ai21labs",
+      "category": "chat"
+    },
+    {
+      "id": "aisingapore/sea-lion-7b-instruct",
+      "owner": "aisingapore",
+      "category": "chat"
+    },
+    {
+      "id": "bigcode/starcoder2-15b",
+      "owner": "bigcode",
+      "category": "code"
+    },
+    {
+      "id": "databricks/dbrx-instruct",
+      "owner": "databricks",
+      "category": "chat"
+    },
+    {
+      "id": "deepseek-ai/deepseek-coder-6.7b-instruct",
+      "owner": "deepseek-ai",
+      "category": "code"
+    },
+    {
+      "id": "deepseek-ai/deepseek-v4.1-flash",
+      "owner": "deepseek-ai",
+      "category": "chat"
+    },
+    {
+      "id": "google/codegemma-1.1-7b",
+      "owner": "google",
+      "category": "code"
+    },
+    {
+      "id": "google/codegemma-7b",
+      "owner": "google",
+      "category": "code"
+    },
+    {
+      "id": "google/deplot",
+      "owner": "google",
+      "category": "vision"
+    },
+    {
+      "id": "google/diffusiongemma-26b-a4b-it",
+      "owner": "google",
+      "category": "vision"
+    },
+    {
+      "id": "google/gemma-2b",
+      "owner": "google",
+      "category": "chat"
+    },
+    {
+      "id": "google/gemma-3-12b-it",
+      "owner": "google",
+      "category": "chat"
+    },
+    {
+      "id": "google/gemma-3-4b-it",
+      "owner": "google",
+      "category": "chat"
+    },
+    {
+      "id": "google/gemma-4-31b-it",
+      "owner": "google",
+      "category": "chat"
+    },
+    {
+      "id": "google/recurrentgemma-2b",
+      "owner": "google",
+      "category": "chat"
+    },
+    {
+      "id": "ibm/granite-3.0-3b-a800m-instruct",
+      "owner": "ibm",
+      "category": "chat"
+    },
+    {
+      "id": "ibm/granite-3.0-8b-instruct",
+      "owner": "ibm",
+      "category": "chat"
+    },
+    {
+      "id": "ibm/granite-34b-code-instruct",
+      "owner": "ibm",
+      "category": "code"
+    },
+    {
+      "id": "ibm/granite-8b-code-instruct",
+      "owner": "ibm",
+      "category": "code"
+    },
+    {
+      "id": "meta/codellama-70b",
+      "owner": "meta",
+      "category": "code"
+    },
+    {
+      "id": "meta/llama-3.2-11b-vision-instruct",
+      "owner": "meta",
+      "category": "vision"
+    },
+    {
+      "id": "meta/llama-3.2-90b-vision-instruct",
+      "owner": "meta",
+      "category": "vision"
+    },
+    {
+      "id": "meta/llama-guard-4-12b",
+      "owner": "meta",
+      "category": "safety"
+    },
+    {
+      "id": "meta/llama2-70b",
+      "owner": "meta",
+      "category": "chat"
+    },
+    {
+      "id": "meta/muse-glimmer-30b",
+      "owner": "meta",
+      "category": "chat"
+    },
+    {
+      "id": "microsoft/kosmos-2",
+      "owner": "microsoft",
+      "category": "vision"
+    },
+    {
+      "id": "microsoft/phi-3-vision-128k-instruct",
+      "owner": "microsoft",
+      "category": "vision"
+    },
+    {
+      "id": "microsoft/phi-3.5-moe-instruct",
+      "owner": "microsoft",
+      "category": "chat"
+    },
+    {
+      "id": "minimaxai/minimax-m3.1-flash",
+      "owner": "minimaxai",
+      "category": "chat"
+    },
+    {
+      "id": "mistralai/codestral-22b-instruct-v0.1",
+      "owner": "mistralai",
+      "category": "code"
+    },
+    {
+      "id": "mistralai/mistral-7b-instruct-v0.3",
+      "owner": "mistralai",
+      "category": "chat"
+    },
+    {
+      "id": "mistralai/mistral-large",
+      "owner": "mistralai",
+      "category": "chat"
+    },
+    {
+      "id": "mistralai/mistral-large-2-instruct",
+      "owner": "mistralai",
+      "category": "chat"
+    },
+    {
+      "id": "mistralai/mixtral-8x22b-v0.1",
+      "owner": "mistralai",
+      "category": "chat"
+    },
+    {
+      "id": "moonshotai/kimi-k2.6",
+      "owner": "moonshotai",
+      "category": "chat"
+    },
+    {
+      "id": "nv-mistralai/mistral-nemo-12b-instruct",
+      "owner": "nv-mistralai",
+      "category": "chat"
+    },
+    {
+      "id": "nvidia/ai-synthetic-video-detector",
+      "owner": "nvidia",
+      "category": "safety"
+    },
+    {
+      "id": "nvidia/cosmos-reason2-8b",
+      "owner": "nvidia",
+      "category": "vision"
+    },
+    {
+      "id": "nvidia/embed-qa-4",
+      "owner": "nvidia",
+      "category": "embedding"
+    },
+    {
+      "id": "nvidia/ising-calibration-1.5-31b",
+      "owner": "nvidia",
+      "category": "chat"
+    },
+    {
+      "id": "nvidia/llama-3.1-nemoguard-8b-content-safety",
+      "owner": "nvidia",
+      "category": "safety"
+    },
+    {
+      "id": "nvidia/llama-3.1-nemoguard-8b-topic-control",
+      "owner": "nvidia",
+      "category": "safety"
+    },
+    {
+      "id": "nvidia/llama-3.1-nemotron-51b-instruct",
+      "owner": "nvidia",
+      "category": "chat"
+    },
+    {
+      "id": "nvidia/llama-3.1-nemotron-70b-instruct",
+      "owner": "nvidia",
+      "category": "chat"
+    },
+    {
+      "id": "nvidia/llama-3.1-nemotron-safety-guard-8b-v3",
+      "owner": "nvidia",
+      "category": "safety"
+    },
+    {
+      "id": "nvidia/llama-3.1-nemotron-ultra-253b-v1",
+      "owner": "nvidia",
+      "category": "chat"
+    },
+    {
+      "id": "nvidia/llama-3.2-nemoretriever-1b-vlm-embed-v1",
+      "owner": "nvidia",
+      "category": "embedding"
+    },
+    {
+      "id": "nvidia/llama-3.2-nv-embedqa-1b-v1",
+      "owner": "nvidia",
+      "category": "embedding"
+    },
+    {
+      "id": "nvidia/llama-nemotron-embed-vl-1b-v2",
+      "owner": "nvidia",
+      "category": "embedding"
+    },
+    {
+      "id": "nvidia/llama3-chatqa-1.5-70b",
+      "owner": "nvidia",
+      "category": "chat"
+    },
+    {
+      "id": "nvidia/mistral-nemo-minitron-8b-8k-instruct",
+      "owner": "nvidia",
+      "category": "chat"
+    },
+    {
+      "id": "nvidia/nemotron-3-embed-1b",
+      "owner": "nvidia",
+      "category": "embedding"
+    },
+    {
+      "id": "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning",
+      "owner": "nvidia",
+      "category": "chat"
+    },
+    {
+      "id": "nvidia/nemotron-3-super-120b-a12b",
+      "owner": "nvidia",
+      "category": "chat"
+    },
+    {
+      "id": "nvidia/nemotron-3-ultra-550b-a55b",
+      "owner": "nvidia",
+      "category": "chat"
+    },
+    {
+      "id": "nvidia/nemotron-3.5-bolt-e4b",
+      "owner": "nvidia",
+      "category": "chat"
+    },
+    {
+      "id": "nvidia/nemotron-3.5-content-safety",
+      "owner": "nvidia",
+      "category": "safety"
+    },
+    {
+      "id": "nvidia/nemotron-3.5-embed-1b",
+      "owner": "nvidia",
+      "category": "embedding"
+    },
+    {
+      "id": "nvidia/nemotron-3.5-embed-8b",
+      "owner": "nvidia",
+      "category": "embedding"
+    },
+    {
+      "id": "nvidia/nemotron-3.5-lightning-30b-a3b",
+      "owner": "nvidia",
+      "category": "chat"
+    },
+    {
+      "id": "nvidia/nemotron-3.5-super-vl-120b-a12b",
+      "owner": "nvidia",
+      "category": "vision"
+    },
+    {
+      "id": "nvidia/nemotron-4-340b-instruct",
+      "owner": "nvidia",
+      "category": "chat"
+    },
+    {
+      "id": "nvidia/nemotron-4-340b-reward",
+      "owner": "nvidia",
+      "category": "safety"
+    },
+    {
+      "id": "nvidia/nemotron-nano-3-30b-a3b",
+      "owner": "nvidia",
+      "category": "chat"
+    },
+    {
+      "id": "nvidia/nemotron-parse",
+      "owner": "nvidia",
+      "category": "parsing"
+    },
+    {
+      "id": "nvidia/nemotron-parse-2.0",
+      "owner": "nvidia",
+      "category": "parsing"
+    },
+    {
+      "id": "nvidia/neva-22b",
+      "owner": "nvidia",
+      "category": "vision"
+    },
+    {
+      "id": "nvidia/nv-embedqa-mistral-7b-v2",
+      "owner": "nvidia",
+      "category": "embedding"
+    },
+    {
+      "id": "nvidia/nvclip",
+      "owner": "nvidia",
+      "category": "embedding"
+    },
+    {
+      "id": "nvidia/riva-translate-4b-instruct",
+      "owner": "nvidia",
+      "category": "translation"
+    },
+    {
+      "id": "nvidia/riva-translate-4b-instruct-v2",
+      "owner": "nvidia",
+      "category": "translation"
+    },
+    {
+      "id": "nvidia/vila",
+      "owner": "nvidia",
+      "category": "vision"
+    },
+    {
+      "id": "openai/gpt-oss-20b",
+      "owner": "openai",
+      "category": "chat"
+    },
+    {
+      "id": "poolside/laguna-xs-2.1",
+      "owner": "poolside",
+      "category": "chat"
+    },
+    {
+      "id": "snowflake/arctic-embed-l",
+      "owner": "snowflake",
+      "category": "embedding"
+    },
+    {
+      "id": "stepfun-ai/step-5-preview",
+      "owner": "stepfun-ai",
+      "category": "chat"
+    },
+    {
+      "id": "writer/palmyra-creative-122b",
+      "owner": "writer",
+      "category": "chat"
+    },
+    {
+      "id": "writer/palmyra-fin-70b-32k",
+      "owner": "writer",
+      "category": "chat"
+    },
+    {
+      "id": "writer/palmyra-med-70b",
+      "owner": "writer",
+      "category": "chat"
+    },
+    {
+      "id": "writer/palmyra-med-70b-32k",
+      "owner": "writer",
+      "category": "chat"
+    },
+    {
+      "id": "z-ai/glm-5.3",
+      "owner": "z-ai",
+      "category": "chat"
+    },
+    {
+      "id": "z-ai/glm-5.3-flash",
+      "owner": "z-ai",
+      "category": "chat"
+    },
+    {
+      "id": "zyphra/zamba2-7b-instruct",
+      "owner": "zyphra",
+      "category": "chat"
+    }
+  ]
+}

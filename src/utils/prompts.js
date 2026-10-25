@@ -60,6 +60,30 @@ exports.getResumeParsingPrompt = (resumeText) => {
 
 
 // ─────────────────────────────────────────────────────────────────────────────
+// STEP 1b: Scanned Resume Transcription (Vision)
+// Called in: aiService.js → transcribeSinglePage()
+// Trigger:  PDF has no usable text layer (image-only / phone scan)
+// Purpose:  Turn a rendered resume page image into plain text, which is then
+//           fed into getResumeParsingPrompt() exactly like a normal PDF
+// ─────────────────────────────────────────────────────────────────────────────
+exports.getResumeTranscriptionPrompt = () => {
+  return `
+    # Task
+    You are an OCR engine. The attached image is one page of a candidate's resume.
+    Transcribe ALL visible text on the page, exactly as it appears.
+
+    # Rules
+    - Output plain text only. No commentary, no markdown headings, no code fences.
+    - Preserve reading order: name, contact details, summary, skills, experience, projects, education, certifications.
+    - Keep bullet points as "- " lines and keep section headings in their original case.
+    - Preserve numbers, dates, company names, and technology names exactly.
+    - If a word is unclear, transcribe your best guess. Do NOT skip lines and do NOT invent content.
+    - If the page has no readable text at all, return exactly: EMPTY_PAGE
+  `;
+};
+
+
+// ─────────────────────────────────────────────────────────────────────────────
 // STEP 2: Opening Greeting
 // Called in: interviewController.js → ingestDocument()
 // Trigger:  New interview session is created

@@ -1,7 +1,6 @@
-const fs = require("fs");
-const pdf = require("pdf-parse");
 const Session = require("../models/Session");
 const { parseResumeWithAI, getAIResponse } = require("../utils/aiService");
+const { extractResumeText, PdfExtractionError } = require("../utils/pdfExtractor");
 const { getOpeningGreetingPrompt } = require("../utils/prompts");
 
 const User = require("../models/User");
@@ -9,12 +8,13 @@ const User = require("../models/User");
 exports.getUserResumeStatus = async (req, res) => {
   try {
     const user = await User.findById(req.user._id).select(
-      "resumeName resumeProfile",
+      "resumeName resumeProfile resumeExtractionMethod",
     );
     res.status(200).json({
       success: true,
       hasResume: !!user.resumeName,
       resumeName: user.resumeName,
+      extractionMethod: user.resumeExtractionMethod || "text",
       profile: user.resumeProfile,
     });
   } catch (error) {
@@ -29,25 +29,48 @@ exports.ingestDocument = async (req, res) => {
     let resumeText;
     let resumeName;
     let profileJson;
+    let extractionMethod = "text";
+
+    const requestStartedAt = Date.now();
+    let extractionMs = 0;
+    let profileMs = 0;
+    let greetingMs = 0;
 
     const user = await User.findById(req.user._id);
 
     if (req.file) {
       try {
-        const pdfData = await pdf(req.file.buffer);
-        resumeText = pdfData.text;
+        const extractionStartedAt = Date.now();
+        const extracted = await extractResumeText(req.file.buffer);
+        extractionMs = Date.now() - extractionStartedAt;
+        resumeText = extracted.text;
         resumeName = req.file.originalname;
+        extractionMethod = extracted.method;
+        console.log(
+          `[Ingest] Resume extracted via ${extractionMethod} (${resumeText.length} chars, ${extracted.numPages || "?"} page(s))`,
+        );
+      } catch (extractionError) {
+        if (extractionError instanceof PdfExtractionError) {
+          console.error(
+            `[Ingest] PDF extraction failed [${extractionError.code}]: ${extractionError.message}`,
+            extractionError.cause?.message || "",
+          );
 
-        if (!resumeText || resumeText.trim().length === 0) {
-          console.error("[Ingest] Empty text extracted from PDF");
-          return res.status(422).json({
+          const statusByCode = {
+            ENCRYPTED_PDF: 422,
+            PDF_UNREADABLE: 422,
+            VISION_FAILED: 502,
+            RASTERIZER_UNAVAILABLE: 500,
+          };
+
+          return res.status(statusByCode[extractionError.code] || 422).json({
             success: false,
-            message:
-              "Could not extract text from the PDF. Please ensure it is not an image-only scan.",
+            code: extractionError.code,
+            message: extractionError.message,
           });
         }
-      } catch (pdfError) {
-        console.error("[Ingest] PDF Parsing Error:", pdfError.message);
+
+        console.error("[Ingest] Unexpected PDF error:", extractionError);
         return res.status(422).json({
           success: false,
           message:
@@ -55,11 +78,14 @@ exports.ingestDocument = async (req, res) => {
         });
       }
 
+      const profileStartedAt = Date.now();
       profileJson = await parseResumeWithAI(resumeText);
+      profileMs = Date.now() - profileStartedAt;
 
       user.resumeText = resumeText;
       user.resumeName = resumeName;
       user.resumeProfile = profileJson;
+      user.resumeExtractionMethod = extractionMethod;
       await user.save();
     } else {
       // 4. Use Saved Resume
@@ -121,7 +147,9 @@ exports.ingestDocument = async (req, res) => {
       resumeText,
       req.body.jobDescription
     );
+    const greetingStartedAt = Date.now();
     const firstMessage = await getAIResponse([], openPrompt);
+    greetingMs = Date.now() - greetingStartedAt;
 
     session.transcript.push({
       role: "assistant",
@@ -131,6 +159,12 @@ exports.ingestDocument = async (req, res) => {
       stage: "introduction",
     });
     await session.save();
+
+    console.log(
+      `[Ingest] done user=${req.user._id} method=${extractionMethod} chars=${resumeText.length} ` +
+        `extractMs=${extractionMs} profileMs=${profileMs} greetingMs=${greetingMs} ` +
+        `totalMs=${Date.now() - requestStartedAt}`,
+    );
 
     res.status(201).json({
       success: true,

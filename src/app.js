@@ -11,6 +11,19 @@ const app = express();
 // Security headers
 app.use(helmet());
 
+// Request latency log. `finish` fires after the response is flushed, so this
+// measures the real end-to-end time the client waited (includes file upload
+// parsing for multipart routes and the full stream for SSE routes).
+app.use((req, res, next) => {
+  const startedAt = Date.now();
+  res.on("finish", () => {
+    console.log(
+      `[HTTP] ${req.method} ${req.originalUrl} status=${res.statusCode} ms=${Date.now() - startedAt}`,
+    );
+  });
+  next();
+});
+
 // Request body size limit
 app.use(express.json({ limit: "10kb" }));
 app.use(express.urlencoded({ extended: true, limit: "10kb" }));

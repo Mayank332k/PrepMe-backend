@@ -49,35 +49,62 @@ exports.handleChat = async (req, res) => {
     res.setHeader("Content-Type", "text/event-stream");
     res.setHeader("Cache-Control", "no-cache");
     res.setHeader("Connection", "keep-alive");
+    // nginx buffers proxied responses by default, which makes SSE arrive in one
+    // burst at the end instead of streaming token by token.
+    res.setHeader("X-Accel-Buffering", "no");
 
     // 5. Get Streaming AI Response
     const stream = await getStreamingAIResponse(history, systemPrompt);
 
+    // Open the stream as soon as the upstream accepts the request (before the
+    // first token), so the client/proxy does not sit on an idle connection.
+    // Flushed only after the upstream call succeeds: if it throws we can still
+    // answer with a real 500 instead of an already-committed 200.
+    if (typeof res.flushHeaders === "function") res.flushHeaders();
+
     let fullContent = "";
+    let sseBuffer = "";
+
+    // One TCP chunk can contain many SSE events - or half of one. Without
+    // buffering, a JSON payload split across chunks fails to parse and that
+    // token is silently dropped.
+    const handleEvent = (raw) => {
+      for (const line of raw.split("\n")) {
+        if (!line.startsWith("data: ")) continue;
+
+        const payload = line.slice(6).trim();
+        if (!payload || payload === "[DONE]") continue;
+
+        try {
+          const data = JSON.parse(payload);
+          const content = data.choices?.[0]?.delta?.content || "";
+          if (content) {
+            fullContent += content;
+            res.write(`data: ${JSON.stringify({ content })}\n\n`);
+          }
+        } catch (e) {
+          // Ignore parse errors for non-JSON lines
+        }
+      }
+    };
 
     stream.on("data", (chunk) => {
-      const lines = chunk.toString().split("\n");
-      for (const line of lines) {
-        if (line.trim() === "data: [DONE]") {
-          // Stream complete
-          return;
-        }
-        if (line.startsWith("data: ")) {
-          try {
-            const data = JSON.parse(line.substring(6));
-            const content = data.choices[0]?.delta?.content || "";
-            if (content) {
-              fullContent += content;
-              res.write(`data: ${JSON.stringify({ content })}\n\n`);
-            }
-          } catch (e) {
-            // Ignore parse errors for non-JSON lines
-          }
-        }
+      sseBuffer = (sseBuffer + chunk.toString()).replace(/\r\n/g, "\n");
+
+      let index;
+      while ((index = sseBuffer.indexOf("\n\n")) !== -1) {
+        handleEvent(sseBuffer.slice(0, index));
+        sseBuffer = sseBuffer.slice(index + 2);
       }
     });
 
     stream.on("end", async () => {
+      // Flush a trailing event that arrived without a final blank line.
+      if (sseBuffer.trim()) {
+        handleEvent(sseBuffer);
+        sseBuffer = "";
+      }
+
       console.log(
         `[Chat] Stream ended. Total content length: ${fullContent.length}`,
       );

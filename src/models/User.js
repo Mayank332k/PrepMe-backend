@@ -43,6 +43,10 @@ const userSchema = new mongoose.Schema(
     resumeProfile: {
       type: Object, // Stores the parsed AI profile
     },
+    resumeExtractionMethod: {
+      type: String,
+      enum: ["text", "vision"], // "vision" = scanned PDF read by the fallback model
+    },
     interviewLimit: {
       type: Number,
       default: 20, // Default 20 interviews per month
