@@ -118,12 +118,12 @@ npm run dev
 
 Both models are hardcoded in `src/utils/aiService.js` (no env override):
 
-- `CHAT_MODEL` = `nvidia/nemotron-3.5-bolt-e4b` - chat, feedback and history summarization
-- `PARSING_MODEL` = `openai/gpt-oss-20b` - resume-to-JSON extraction
+- `CHAT_MODEL` = `openai/gpt-oss-20b` with `CHAT_REASONING_EFFORT = 'low'` - chat, feedback and history summarization
+- `PARSING_MODEL` = `openai/gpt-oss-20b` - resume-to-JSON extraction and the final report, with the default reasoning budget
 
 `NVIDIA_BASE_URL` remains configurable if you need to point at a self-hosted NIM endpoint.
 
-`bolt-e4b` is a small non-reasoning model and streams its first token in ~0.4s on the free tier, which is what the chat UI feels. `gpt-oss-20b` is a reasoning model: it spends part of `max_tokens` on hidden reasoning before writing an answer, so it is kept only for parsing, where accuracy matters more than latency. `getAIResponse` detects the `finish_reason: "length"` + `content: null` case, retries once with double the budget, and logs a warning if it still comes back empty.
+`gpt-oss-20b` is a reasoning model: it spends part of `max_tokens` on hidden reasoning before writing an answer. At the default effort that can be 300-1500 tokens (~4-9s to first token), so chat passes `reasoning_effort: "low"`, which cuts it to roughly 50 tokens (~1.4s) without noticeably hurting answer quality. Parsing and the final report skip the shortcut because they must return valid JSON. `getAIResponse` also detects the `finish_reason: "length"` + `content: null` case, retries once with double the budget, and logs a warning if it still comes back empty.
 
 Latency was measured on the free tier, where it varies a lot per request. Note that most entries in the NVIDIA catalog return 404 for a given account even though `/models` lists them.
 

@@ -9,12 +9,14 @@ const NVIDIA_API_KEY = process.env.NVIDIA_API_KEY;
 const NVIDIA_BASE_URL = process.env.NVIDIA_BASE_URL || 'https://integrate.api.nvidia.com/v1';
 
 // Chat model used for interview questions, feedback and history summarization.
-// Hardcoded on purpose: nvidia/nemotron-3.5-bolt-e4b measured ~370ms to first
-// token on the free tier, ~40x faster than the previous gpt-oss-20b default.
-const CHAT_MODEL = 'nvidia/nemotron-3.5-bolt-e4b';
+// gpt-oss-20b is a reasoning model. With the default effort it can spend
+// 300-1500 tokens thinking before the first visible token (~4-9s); `low` cuts
+// that to ~50 tokens (~1.4s) while keeping answer quality.
+const CHAT_MODEL = 'openai/gpt-oss-20b';
+const CHAT_REASONING_EFFORT = 'low';
 
-// Resume parsing needs strict JSON output, so it keeps the stronger reasoning
-// model instead of the fast chat model.
+// Resume parsing and report generation need strict JSON output, so they keep
+// the default (full) reasoning budget instead of the chat latency shortcut.
 const PARSING_MODEL = 'openai/gpt-oss-20b';
 
 if (!NVIDIA_API_KEY) {
@@ -188,7 +190,8 @@ async function getStreamingAIResponse(messages, systemPrompt, maxTokens = 1000, 
       max_tokens: maxTokens,
       top_p: 0.7,
       stream: true,
-      }, {
+      reasoning_effort: CHAT_REASONING_EFFORT,
+    }, {
       responseType: 'stream',
       headers: {
         'Accept': 'text/event-stream'
